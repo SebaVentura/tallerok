@@ -1,5 +1,13 @@
-// Cambiar por la IPv4 de tu PC en la red WiFi (ver backend/README.md → ipconfig)
-const TRANSCRIBE_API_URL = 'http://192.168.0.9:8000/transcribe';
+import { env } from '@/config/env';
+
+function getTranscribeApiUrl(): string {
+  if (!env.transcribeApiUrl) {
+    throw new Error(
+      'EXPO_PUBLIC_TRANSCRIBE_API_URL no está configurada. Ver backend/README.md y .env.example.',
+    );
+  }
+  return `${env.transcribeApiUrl}/transcribe`;
+}
 
 export type TranscriptionResult = {
   text: string;
@@ -36,7 +44,7 @@ export async function transcribeAudio(audioUri: string): Promise<TranscriptionRe
     name,
   } as unknown as Blob);
 
-  const response = await fetch(TRANSCRIBE_API_URL, {
+  const response = await fetch(getTranscribeApiUrl(), {
     method: 'POST',
     body: formData,
   });

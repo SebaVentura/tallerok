@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Badge } from '@/components/talleria/Badge';
 import { Card } from '@/components/talleria/Card';
+import { ConnectionBadge } from '@/components/talleria/ConnectionBadge';
 import { KpiCard } from '@/components/talleria/KpiCard';
 import { PrimaryButton } from '@/components/talleria/PrimaryButton';
 import { Screen } from '@/components/talleria/Screen';
@@ -15,9 +16,11 @@ import {
   historial,
   ordenes,
 } from '@/data/mock';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const { connectionMode, isAuthenticated, socio, user } = useAuth();
   const kpis = getDashboardKpis();
   const topTrabajos = getTopTrabajosMes();
   const recientes = historial
