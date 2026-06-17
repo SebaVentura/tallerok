@@ -1,29 +1,22 @@
-import { Link } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Screen } from '@/components/talleria/Screen';
+import { TalleriaColors } from '@/constants/theme';
 
 export default function ModalScreen() {
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">This is a modal</ThemedText>
-      <Link href="/" dismissTo style={styles.link}>
-        <ThemedText type="link">Go to home screen</ThemedText>
-      </Link>
-    </ThemedView>
+    <Screen title="Modal" subtitle="Pantalla del template — fuera del flujo TallerOK">
+      <Text style={styles.text}>
+        Esta ruta se mantiene del template original. El adelanto MP se simula dentro de Presupuesto.
+      </Text>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  link: {
-    marginTop: 15,
-    paddingVertical: 15,
+  text: {
+    fontSize: 15,
+    color: TalleriaColors.textMuted,
+    lineHeight: 22,
   },
 });

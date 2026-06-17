@@ -27,6 +27,21 @@ export const Colors = {
   },
 };
 
+export const TalleriaColors = {
+  background: '#0f1117',
+  surface: '#1a1d27',
+  surfaceElevated: '#242836',
+  border: '#2e3348',
+  text: '#f0f1f5',
+  textMuted: '#8b92a8',
+  accent: '#6366f1',
+  accentMuted: '#4f46e5',
+  success: '#22c55e',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  tabBar: '#14161e',
+};
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

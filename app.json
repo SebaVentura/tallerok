@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "talleria",
-    "slug": "talleria",
+    "name": "TallerOK",
+    "slug": "tallerok",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "talleria",
+    "scheme": "tallerok",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
