@@ -33,10 +33,10 @@ ipconfig
 
 Buscar **IPv4** de la interfaz WiFi, por ejemplo: `192.168.1.45`
 
-Configurar esa IP en `services/transcription.ts` del frontend:
+Configurar esa URL en `.env` del frontend:
 
-```ts
-const TRANSCRIBE_API_URL = 'http://192.168.1.45:8000/transcribe';
+```env
+EXPO_PUBLIC_TRANSCRIBE_API_URL=http://192.168.1.45:8000
 ```
 
 ## Firewall Windows
@@ -73,7 +73,7 @@ Documentación interactiva (TallerOK API): http://127.0.0.1:8000/docs
 ## Probar desde Expo Go
 
 1. Backend corriendo con `--host 0.0.0.0`.
-2. IP configurada en `services/transcription.ts`.
+2. IP configurada en `.env` (`EXPO_PUBLIC_TRANSCRIBE_API_URL`).
 3. `npx expo start` en la raíz del proyecto.
 4. En TallerOK: Clientes → Vehículo → Diagnóstico IA.5. Grabar audio → Detener → debe aparecer "Transcribiendo diagnóstico…".
 6. Tras unos segundos, el texto real reemplaza el mock.

@@ -38,7 +38,26 @@ export default function DashboardScreen() {
   ];
 
   return (
-    <Screen title="TallerOK" subtitle="Panel comercial · Demo CRABB">
+    <Screen title="TallerOK">
+      <View style={styles.headerRow}>
+        <Text style={styles.subtitleInline}>Panel comercial</Text>
+        <ConnectionBadge mode={connectionMode} compact />
+      </View>
+
+      {isAuthenticated && socio ? (
+        <Card>
+          <Text style={styles.socioSectionLabel}>Socio conectado (CRABB API)</Text>
+          <Text style={styles.socioNombre}>
+            {socio.denominacion_taller ?? socio.nombre_apellido}
+          </Text>
+          <Text style={styles.socioDetalle}>
+            Nº {socio.nro_socio} · {socio.estado}
+            {socio.estado_cuota ? ` · Cuota ${socio.estado_cuota}` : ''}
+          </Text>
+          {user?.email ? <Text style={styles.socioDetalle}>{user.email}</Text> : null}
+        </Card>
+      ) : null}
+
       <View style={styles.kpiGrid}>
         {kpiItems.map((item) => (
           <View key={item.label} style={styles.kpiItem}>
@@ -109,6 +128,34 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: -8,
+  },
+  subtitleInline: {
+    flex: 1,
+    fontSize: 15,
+    color: TalleriaColors.textMuted,
+  },
+  socioSectionLabel: {
+    fontSize: 12,
+    color: TalleriaColors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  socioNombre: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: TalleriaColors.text,
+  },
+  socioDetalle: {
+    fontSize: 14,
+    color: TalleriaColors.textMuted,
+  },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

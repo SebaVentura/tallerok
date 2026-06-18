@@ -275,7 +275,7 @@ export default function DiagnosticoScreen() {
             error instanceof Error ? error.message : 'No se pudo conectar con el backend local.';
           Alert.alert(
             'Transcripción no disponible',
-            `${message}\n\nVerificá que el backend esté corriendo y que la IP en services/transcription.ts sea correcta. Podés editar el diagnóstico manualmente.`,
+            `${message}\n\nVerificá que el backend esté corriendo y que EXPO_PUBLIC_TRANSCRIBE_API_URL en .env sea correcta. Podés editar el diagnóstico manualmente.`,
           );
         } finally {
           setIsTranscribing(false);
