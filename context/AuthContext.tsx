@@ -13,7 +13,7 @@ import * as authService from '@/services/api/authService';
 import { ApiError } from '@/services/api/client';
 import type { MobileLoginPayload, MobileMeResponse, MobileSocio, MobileUser } from '@/types/api';
 
-export type ConnectionMode = 'loading' | 'connected' | 'demo';
+export type ConnectionMode = 'loading' | 'crabb_connected' | 'demo';
 
 type AuthContextValue = {
   connectionMode: ConnectionMode;
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session?.user) {
       setUser(session.user);
       setSocio(session.socio ?? null);
-      setConnectionMode('connected');
+      setConnectionMode('crabb_connected');
     } else {
       setUser(null);
       setSocio(null);
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const response = await authService.login(payload);
         setUser(response.user);
         setSocio(response.socio ?? null);
-        setConnectionMode('connected');
+        setConnectionMode('crabb_connected');
 
         try {
           const me = await authService.fetchMe();
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       connectionMode,
       isApiConfigured: env.isApiConfigured,
-      isAuthenticated: connectionMode === 'connected',
+      isAuthenticated: connectionMode === 'crabb_connected',
       isRestoring,
       user,
       socio,

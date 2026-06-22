@@ -1,5 +1,7 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Badge } from '@/components/talleria/Badge';
 import { Card } from '@/components/talleria/Card';
@@ -17,18 +19,68 @@ import {
   ordenes,
 } from '@/data/mock';
 import { useAuth } from '@/hooks/useAuth';
+import { useConnectionMode } from '@/hooks/useConnectionMode';
+import { useTallerOkAuth } from '@/hooks/useTallerOkAuth';
+import { TallerOkApiError } from '@/services/tallerok/tallerokClient';
+import { getDashboard } from '@/services/tallerok/tallerokDashboardApi';
+import type { TallerOkActividadReciente, TallerOkDashboard } from '@/types/tallerokApi';
+import type { EstadoOrden } from '@/types/talleria';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { connectionMode, isAuthenticated, socio, user } = useAuth();
+  const connectionMode = useConnectionMode();
+  const { isAuthenticated: isCrabbAuth, socio, user } = useAuth();
+  const {
+    isAuthenticated: isTallerOkAuth,
+    taller: tallerOk,
+    user: tallerOkUser,
+    sessionExpired,
+    clearSessionExpired,
+  } = useTallerOkAuth();
+
+  const [dashboardApi, setDashboardApi] = useState<TallerOkDashboard | null>(null);
+  const [isLoadingApi, setIsLoadingApi] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const loadDashboard = useCallback(async () => {
+    if (!isTallerOkAuth) {
+      setDashboardApi(null);
+      setApiError(null);
+      return;
+    }
+
+    setIsLoadingApi(true);
+    setApiError(null);
+
+    try {
+      const data = await getDashboard();
+      setDashboardApi(data);
+    } catch (error) {
+      const message =
+        error instanceof TallerOkApiError
+          ? error.message
+          : 'No se pudo cargar el dashboard. Mostrando datos demo.';
+      setApiError(message);
+      setDashboardApi(null);
+    } finally {
+      setIsLoadingApi(false);
+    }
+  }, [isTallerOkAuth]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadDashboard();
+    }, [loadDashboard]),
+  );
+
   const kpis = getDashboardKpis();
   const topTrabajos = getTopTrabajosMes();
-  const recientes = historial
+  const recientesDemo = historial
     .slice()
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
     .slice(0, 4);
 
-  const kpiItems = [
+  const kpiItemsDemo = [
     { label: 'Facturación del mes', value: formatMonto(kpis.facturacionMes), accent: true },
     { label: 'Ganancia estimada', value: formatMonto(kpis.gananciaEstimada), accent: true },
     { label: 'Vehículos entregados', value: String(kpis.vehiculosEntregados) },
@@ -37,6 +89,31 @@ export default function DashboardScreen() {
     { label: 'Ticket promedio', value: formatMonto(kpis.ticketPromedio) },
   ];
 
+  const kpiItemsApi = dashboardApi
+    ? [
+        { label: 'Clientes', value: String(dashboardApi.clientesTotal) },
+        { label: 'Vehículos', value: String(dashboardApi.vehiculosTotal) },
+        { label: 'Órdenes activas', value: String(dashboardApi.ordenesActivas), accent: true },
+        {
+          label: 'Presupuestos pendientes',
+          value: String(dashboardApi.presupuestosPendientes),
+          accent: true,
+        },
+      ]
+    : [];
+
+  const actividadApi = dashboardApi?.actividadReciente ?? [];
+
+  const handleActividadPress = (item: TallerOkActividadReciente) => {
+    if (item.ordenId) {
+      router.push(`/(flow)/orden/${item.ordenId}` as const);
+      return;
+    }
+    if (item.vehiculoId) {
+      router.push(`/(flow)/vehiculo/${item.vehiculoId}` as const);
+    }
+  };
+
   return (
     <Screen title="TallerOK">
       <View style={styles.headerRow}>
@@ -44,7 +121,22 @@ export default function DashboardScreen() {
         <ConnectionBadge mode={connectionMode} compact />
       </View>
 
-      {isAuthenticated && socio ? (
+      {sessionExpired ? (
+        <Card>
+          <Text style={styles.errorText}>Tu sesión TallerOK expiró. Volvé a iniciar sesión.</Text>
+          <PrimaryButton title="Entendido" onPress={clearSessionExpired} />
+        </Card>
+      ) : null}
+
+      {isTallerOkAuth && tallerOk ? (
+        <Card>
+          <Text style={styles.socioSectionLabel}>Taller conectado (API TallerOK)</Text>
+          <Text style={styles.socioNombre}>{tallerOk.nombre}</Text>
+          {tallerOkUser?.email ? <Text style={styles.socioDetalle}>{tallerOkUser.email}</Text> : null}
+        </Card>
+      ) : null}
+
+      {isCrabbAuth && socio ? (
         <Card>
           <Text style={styles.socioSectionLabel}>Socio conectado (CRABB API)</Text>
           <Text style={styles.socioNombre}>
@@ -58,66 +150,115 @@ export default function DashboardScreen() {
         </Card>
       ) : null}
 
-      <View style={styles.kpiGrid}>
-        {kpiItems.map((item) => (
-          <View key={item.label} style={styles.kpiItem}>
-            <KpiCard label={item.label} value={item.value} compact accent={item.accent} />
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.opsRow}>
-        <View style={styles.opsItem}>
-          <KpiCard label="Órdenes activas" value={String(kpis.activas)} compact />
-        </View>
-        <View style={styles.opsItem}>
-          <KpiCard label="En taller" value={String(kpis.enTaller)} compact />
-        </View>
-      </View>
-
-      <Text style={styles.section}>Top trabajos del mes</Text>
-      {topTrabajos.map((trabajo, index) => (
-        <Card key={trabajo.id}>
-          <View style={styles.topRow}>
-            <View style={styles.rank}>
-              <Text style={styles.rankText}>{index + 1}</Text>
+      {isTallerOkAuth ? (
+        <>
+          {isLoadingApi ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={TalleriaColors.accent} />
+              <Text style={styles.loadingText}>Cargando dashboard…</Text>
             </View>
-            <View style={styles.flex}>
-              <Text style={styles.topNombre}>{trabajo.nombre}</Text>
-              <Text style={styles.topGanancia}>Ganancia {formatMonto(trabajo.ganancia)}</Text>
-            </View>
-          </View>
-        </Card>
-      ))}
+          ) : null}
 
-      <Text style={styles.section}>Actividad reciente</Text>
-      {recientes.map((item) => {
-        const vehiculo = getVehiculo(item.vehiculoId);
-        return (
-          <Card
-            key={item.id}
-            onPress={() => {
-              if (item.ordenId) {
-                router.push(`/(flow)/orden/${item.ordenId}` as const);
-              } else {
-                router.push(`/(flow)/vehiculo/${item.vehiculoId}` as const);
-              }
-            }}>
-            <View style={styles.row}>
-              <View style={styles.flex}>
-                <Text style={styles.cardTitle}>{vehiculo?.patente ?? '—'}</Text>
-                <Text style={styles.cardSub}>{item.motivo}</Text>
-                <Text style={styles.cardDate}>{item.fecha}</Text>
+          {apiError ? (
+            <Card>
+              <Text style={styles.errorText}>{apiError}</Text>
+            </Card>
+          ) : null}
+
+          <View style={styles.kpiGrid}>
+            {kpiItemsApi.map((item) => (
+              <View key={item.label} style={styles.kpiItem}>
+                <KpiCard label={item.label} value={item.value} compact accent={item.accent} />
               </View>
-              <Badge estado={item.estado} />
+            ))}
+          </View>
+
+          <Text style={styles.section}>Actividad reciente</Text>
+          {actividadApi.length === 0 ? (
+            <Card>
+              <Text style={styles.muted}>Sin actividad reciente por ahora.</Text>
+            </Card>
+          ) : (
+            actividadApi.map((item) => (
+              <Card
+                key={item.id}
+                onPress={() => handleActividadPress(item)}>
+                <View style={styles.row}>
+                  <View style={styles.flex}>
+                    <Text style={styles.cardTitle}>{item.vehiculoPatente ?? '—'}</Text>
+                    <Text style={styles.cardSub}>{item.motivo}</Text>
+                    <Text style={styles.cardDate}>{item.fecha}</Text>
+                  </View>
+                  <Badge estado={item.estado as EstadoOrden} />
+                </View>
+              </Card>
+            ))
+          )}
+        </>
+      ) : (
+        <>
+          <View style={styles.kpiGrid}>
+            {kpiItemsDemo.map((item) => (
+              <View key={item.label} style={styles.kpiItem}>
+                <KpiCard label={item.label} value={item.value} compact accent={item.accent} />
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.opsRow}>
+            <View style={styles.opsItem}>
+              <KpiCard label="Órdenes activas" value={String(kpis.activas)} compact />
             </View>
-          </Card>
-        );
-      })}
+            <View style={styles.opsItem}>
+              <KpiCard label="En taller" value={String(kpis.enTaller)} compact />
+            </View>
+          </View>
+
+          <Text style={styles.section}>Top trabajos del mes</Text>
+          {topTrabajos.map((trabajo, index) => (
+            <Card key={trabajo.id}>
+              <View style={styles.topRow}>
+                <View style={styles.rank}>
+                  <Text style={styles.rankText}>{index + 1}</Text>
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.topNombre}>{trabajo.nombre}</Text>
+                  <Text style={styles.topGanancia}>Ganancia {formatMonto(trabajo.ganancia)}</Text>
+                </View>
+              </View>
+            </Card>
+          ))}
+
+          <Text style={styles.section}>Actividad reciente</Text>
+          {recientesDemo.map((item) => {
+            const vehiculo = getVehiculo(item.vehiculoId);
+            return (
+              <Card
+                key={item.id}
+                onPress={() => {
+                  if (item.ordenId) {
+                    router.push(`/(flow)/orden/${item.ordenId}` as const);
+                  } else {
+                    router.push(`/(flow)/vehiculo/${item.vehiculoId}` as const);
+                  }
+                }}>
+                <View style={styles.row}>
+                  <View style={styles.flex}>
+                    <Text style={styles.cardTitle}>{vehiculo?.patente ?? '—'}</Text>
+                    <Text style={styles.cardSub}>{item.motivo}</Text>
+                    <Text style={styles.cardDate}>{item.fecha}</Text>
+                  </View>
+                  <Badge estado={item.estado} />
+                </View>
+              </Card>
+            );
+          })}
+        </>
+      )}
 
       <PrimaryButton title="Ver clientes" onPress={() => router.push('/(tabs)/clientes')} />
 
-      {ordenes[0] ? (
+      {!isTallerOkAuth && ordenes[0] ? (
         <PrimaryButton
           title={`Orden activa: ${ordenes[0].numero}`}
           onPress={() => router.push(`/(flow)/orden/${ordenes[0].id}` as const)}
@@ -153,6 +294,25 @@ const styles = StyleSheet.create({
     color: TalleriaColors.text,
   },
   socioDetalle: {
+    fontSize: 14,
+    color: TalleriaColors.textMuted,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: TalleriaColors.textMuted,
+  },
+  errorText: {
+    fontSize: 14,
+    color: TalleriaColors.danger,
+    lineHeight: 20,
+  },
+  muted: {
     fontSize: 14,
     color: TalleriaColors.textMuted,
   },

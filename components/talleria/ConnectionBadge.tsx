@@ -1,20 +1,25 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { TalleriaColors } from '@/constants/theme';
-import type { ConnectionMode } from '@/context/AuthContext';
+import type { AppConnectionMode } from '@/hooks/useConnectionMode';
 
 type ConnectionBadgeProps = {
-  mode: ConnectionMode;
+  mode: AppConnectionMode;
   compact?: boolean;
 };
 
-const LABELS: Record<ConnectionMode, { text: string; color: string; bg: string }> = {
+const LABELS: Record<AppConnectionMode, { text: string; color: string; bg: string }> = {
   loading: {
     text: 'Conectando…',
     color: TalleriaColors.textMuted,
     bg: `${TalleriaColors.textMuted}22`,
   },
-  connected: {
+  tallerok_connected: {
+    text: 'Conectado a TallerOK',
+    color: TalleriaColors.success,
+    bg: `${TalleriaColors.success}22`,
+  },
+  crabb_connected: {
     text: 'Conectado a CRABB',
     color: TalleriaColors.success,
     bg: `${TalleriaColors.success}22`,
