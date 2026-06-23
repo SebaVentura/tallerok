@@ -128,9 +128,18 @@ export default function DashboardScreen() {
         </Card>
       ) : null}
 
+      {!isTallerOkAuth && connectionMode === 'demo' ? (
+        <View style={styles.demoBanner}>
+          <Text style={styles.demoBannerTitle}>Modo demo activo</Text>
+          <Text style={styles.demoBannerText}>
+            Estás viendo datos de ejemplo. Conectá tu taller desde la pantalla de inicio.
+          </Text>
+        </View>
+      ) : null}
+
       {isTallerOkAuth && tallerOk ? (
         <Card>
-          <Text style={styles.socioSectionLabel}>Taller conectado (API TallerOK)</Text>
+          <Text style={styles.socioSectionLabel}>Conectado a TallerOK</Text>
           <Text style={styles.socioNombre}>{tallerOk.nombre}</Text>
           {tallerOkUser?.email ? <Text style={styles.socioDetalle}>{tallerOkUser.email}</Text> : null}
         </Card>
@@ -311,6 +320,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: TalleriaColors.danger,
     lineHeight: 20,
+  },
+  demoBanner: {
+    backgroundColor: `${TalleriaColors.warning}18`,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: `${TalleriaColors.warning}44`,
+    padding: 14,
+    gap: 4,
+  },
+  demoBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: TalleriaColors.warning,
+  },
+  demoBannerText: {
+    fontSize: 13,
+    color: TalleriaColors.textMuted,
+    lineHeight: 18,
   },
   muted: {
     fontSize: 14,

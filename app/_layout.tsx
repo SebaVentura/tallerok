@@ -6,7 +6,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { TallerOkAuthProvider } from '@/context/TallerOkAuthContext';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: 'index',
 };
 
 export default function RootLayout() {
@@ -14,6 +14,7 @@ export default function RootLayout() {
     <AuthProvider>
       <TallerOkAuthProvider>
         <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="(flow)" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />

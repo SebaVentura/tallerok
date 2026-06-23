@@ -1,3 +1,7 @@
+import {
+  buildClientesQueryString,
+  type ClientesSearchFilters,
+} from '@/services/tallerok/tallerokClientesFilter';
 import { tallerokClient } from '@/services/tallerok/tallerokClient';
 import { normalizeTallerOkCliente } from '@/services/tallerok/tallerokMappers';
 import type {
@@ -5,6 +9,8 @@ import type {
   TallerOkCreateClientePayload,
   TallerOkUpdateClientePayload,
 } from '@/types/tallerokApi';
+
+export type { ClientesSearchFilters };
 
 function normalizeClienteList(raw: unknown): TallerOkCliente[] {
   if (Array.isArray(raw)) {
@@ -16,8 +22,10 @@ function normalizeClienteList(raw: unknown): TallerOkCliente[] {
   return list.map((item) => normalizeTallerOkCliente(item));
 }
 
-export async function listClientes(): Promise<TallerOkCliente[]> {
-  const response = await tallerokClient.get<unknown>('/clientes', { auth: true });
+export async function listClientes(filters?: ClientesSearchFilters): Promise<TallerOkCliente[]> {
+  const query = filters ? buildClientesQueryString(filters) : '';
+  const path = query ? `/clientes?${query}` : '/clientes';
+  const response = await tallerokClient.get<unknown>(path, { auth: true });
   return normalizeClienteList(response);
 }
 

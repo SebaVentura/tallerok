@@ -9,7 +9,7 @@ export type AppConnectionMode =
 
 export function useConnectionMode(): AppConnectionMode {
   const { connectionMode: crabbMode, isRestoring: crabbRestoring } = useAuth();
-  const { isAuthenticated: tallerokAuth, isLoading: tallerokLoading } = useTallerOkAuth();
+  const { isAuthenticated: tallerokAuth, isLoading: tallerokLoading, isDemoMode } = useTallerOkAuth();
 
   if (tallerokLoading || crabbRestoring || crabbMode === 'loading') {
     return 'loading';
@@ -23,5 +23,9 @@ export function useConnectionMode(): AppConnectionMode {
     return 'crabb_connected';
   }
 
-  return 'demo';
+  if (isDemoMode) {
+    return 'demo';
+  }
+
+  return 'loading';
 }

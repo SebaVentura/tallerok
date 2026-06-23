@@ -1,4 +1,5 @@
 import { assertTallerOkApiConfigured, env } from '@/config/env';
+import { logTallerOkApiRequest } from '@/services/tallerok/tallerokApiLogger';
 import { clearTallerOkToken, getTallerOkToken } from '@/services/tallerok/tallerokTokenStorage';
 import type { TallerOkApiErrorBody } from '@/types/tallerokApi';
 
@@ -65,6 +66,8 @@ async function request<T>(
   options: RequestOptions = {},
 ): Promise<T> {
   const { auth = false, timeoutMs = DEFAULT_TIMEOUT_MS, headers = {} } = options;
+  const startedAt = Date.now();
+  let usedToken = false;
 
   const requestHeaders: Record<string, string> = {
     Accept: 'application/json',
@@ -79,11 +82,23 @@ async function request<T>(
     const token = await getTallerOkToken();
     if (token) {
       requestHeaders.Authorization = `Bearer ${token}`;
+      usedToken = true;
     }
   }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  const logRequest = (status: number, error?: string) => {
+    logTallerOkApiRequest({
+      method,
+      endpoint: path,
+      status,
+      durationMs: Date.now() - startedAt,
+      usedToken,
+      error,
+    });
+  };
 
   try {
     const response = await fetch(buildUrl(path), {
@@ -96,6 +111,7 @@ async function request<T>(
     if (!response.ok) {
       const errorBody = await parseErrorBody(response);
       const message = formatErrorMessage(response.status, errorBody);
+      logRequest(response.status, message);
 
       if (response.status === 401) {
         await clearTallerOkToken();
@@ -104,6 +120,8 @@ async function request<T>(
 
       throw new TallerOkApiError(response.status, message, errorBody);
     }
+
+    logRequest(response.status);
 
     if (response.status === 204) {
       return undefined as T;
@@ -116,13 +134,15 @@ async function request<T>(
     }
 
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new TallerOkApiError(408, 'La solicitud tardó demasiado. Verificá tu conexión.');
+      const message = 'La solicitud tardó demasiado. Verificá tu conexión.';
+      logRequest(408, message);
+      throw new TallerOkApiError(408, message);
     }
 
-    throw new TallerOkApiError(
-      0,
-      error instanceof Error ? error.message : 'No se pudo conectar con la API TallerOK',
-    );
+    const message =
+      error instanceof Error ? error.message : 'No se pudo conectar con la API TallerOK';
+    logRequest(0, message);
+    throw new TallerOkApiError(0, message);
   } finally {
     clearTimeout(timeoutId);
   }

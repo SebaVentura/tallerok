@@ -12,6 +12,8 @@ import { ConnectionBadge } from '@/components/talleria/ConnectionBadge';
 import { Card } from '@/components/talleria/Card';
 import { PrimaryButton } from '@/components/talleria/PrimaryButton';
 import { Screen } from '@/components/talleria/Screen';
+import { TallerOkAuthSection } from '@/components/talleria/TallerOkAuthSection';
+import { TallerOkDebugPanel } from '@/components/talleria/TallerOkDebugPanel';
 import { TalleriaColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useConnectionMode } from '@/hooks/useConnectionMode';
@@ -51,19 +53,7 @@ export default function PersonalizacionScreen() {
     clearAuthError: clearCrabbAuthError,
   } = useAuth();
 
-  const {
-    isTallerOkApiConfigured,
-    isAuthenticated: isTallerOkAuth,
-    isLoading: isTallerOkLoading,
-    user: tallerOkUser,
-    taller: tallerOk,
-    authError: tallerOkAuthError,
-    sessionExpired,
-    login: loginTallerOk,
-    logout: logoutTallerOk,
-    clearAuthError: clearTallerOkAuthError,
-    clearSessionExpired,
-  } = useTallerOkAuth();
+  const { isAuthenticated: isTallerOkAuth, taller: tallerOk } = useTallerOkAuth();
 
   const nombreDesdeCrabb =
     socio?.denominacion_taller?.trim() || socio?.nombre_apellido?.trim() || null;
@@ -73,10 +63,7 @@ export default function PersonalizacionScreen() {
   const [accent, setAccent] = useState(ACCENT_PRESETS[0].color);
   const [crabbEmail, setCrabbEmail] = useState('');
   const [crabbPassword, setCrabbPassword] = useState('');
-  const [tallerOkEmail, setTallerOkEmail] = useState('');
-  const [tallerOkPassword, setTallerOkPassword] = useState('');
   const [isLoggingInCrabb, setIsLoggingInCrabb] = useState(false);
-  const [isLoggingInTallerOk, setIsLoggingInTallerOk] = useState(false);
 
   useEffect(() => {
     if (isTallerOkAuth && nombreDesdeTallerOk) {
@@ -89,7 +76,8 @@ export default function PersonalizacionScreen() {
   }, [isCrabbAuth, isTallerOkAuth, nombreDesdeCrabb, nombreDesdeTallerOk]);
 
   const iniciales = useMemo(() => getIniciales(nombreTaller), [nombreTaller]);
-  const usandoDatosReales = (isTallerOkAuth && Boolean(nombreDesdeTallerOk)) || (isCrabbAuth && Boolean(nombreDesdeCrabb));
+  const usandoDatosReales =
+    (isTallerOkAuth && Boolean(nombreDesdeTallerOk)) || (isCrabbAuth && Boolean(nombreDesdeCrabb));
 
   const handleLoginCrabb = async () => {
     clearCrabbAuthError();
@@ -112,28 +100,6 @@ export default function PersonalizacionScreen() {
     setCrabbPassword('');
   };
 
-  const handleLoginTallerOk = async () => {
-    clearTallerOkAuthError();
-    clearSessionExpired();
-    setIsLoggingInTallerOk(true);
-    try {
-      await loginTallerOk({ email: tallerOkEmail.trim(), password: tallerOkPassword });
-    } catch {
-      // authError ya queda en contexto
-    } finally {
-      setIsLoggingInTallerOk(false);
-    }
-  };
-
-  const handleLogoutTallerOk = async () => {
-    await logoutTallerOk();
-    if (!isCrabbAuth) {
-      setNombreTaller(DEMO_NOMBRE);
-    }
-    setTallerOkEmail('');
-    setTallerOkPassword('');
-  };
-
   return (
     <Screen title="Personalización">
       <View style={styles.headerRow}>
@@ -141,69 +107,17 @@ export default function PersonalizacionScreen() {
         <ConnectionBadge mode={connectionMode} compact />
       </View>
 
-      <Card>
-        <Text style={styles.label}>Conexión API TallerOK</Text>
-        {!isTallerOkApiConfigured ? (
-          <Text style={styles.muted}>
-            API no configurada. Definí EXPO_PUBLIC_TALLEROK_API_URL en .env para conectar con
-            TallerOK.
-          </Text>
-        ) : isTallerOkLoading ? (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator color={TalleriaColors.accent} />
-            <Text style={styles.muted}>Restaurando sesión TallerOK…</Text>
-          </View>
-        ) : isTallerOkAuth ? (
-          <View style={styles.sessionBlock}>
-            <Text style={styles.value}>{tallerOkUser?.nombre ?? 'Usuario'}</Text>
-            <Text style={styles.muted}>{tallerOkUser?.email}</Text>
-            {tallerOk ? (
-              <>
-                <Text style={styles.detalle}>Taller: {tallerOk.nombre}</Text>
-                {tallerOk.telefono ? <Text style={styles.detalle}>Tel: {tallerOk.telefono}</Text> : null}
-              </>
-            ) : null}
-            <PrimaryButton title="Cerrar sesión TallerOK" onPress={handleLogoutTallerOk} />
-          </View>
-        ) : (
-          <View style={styles.sessionBlock}>
-            <Text style={styles.muted}>
-              Iniciá sesión para usar datos reales del taller (dashboard, clientes y vehículos).
-            </Text>
-            {sessionExpired ? (
-              <Text style={styles.error}>Tu sesión expiró. Volvé a ingresar.</Text>
-            ) : null}
-            <TextInput
-              style={styles.input}
-              value={tallerOkEmail}
-              onChangeText={setTallerOkEmail}
-              placeholder="Email TallerOK"
-              placeholderTextColor={TalleriaColors.textMuted}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              textContentType="emailAddress"
-            />
-            <TextInput
-              style={styles.input}
-              value={tallerOkPassword}
-              onChangeText={setTallerOkPassword}
-              placeholder="Contraseña"
-              placeholderTextColor={TalleriaColors.textMuted}
-              secureTextEntry
-              textContentType="password"
-            />
-            {tallerOkAuthError ? <Text style={styles.error}>{tallerOkAuthError}</Text> : null}
-            <PrimaryButton
-              title={isLoggingInTallerOk ? 'Ingresando…' : 'Iniciar sesión TallerOK'}
-              onPress={handleLoginTallerOk}
-              disabled={isLoggingInTallerOk || !tallerOkEmail.trim() || !tallerOkPassword}
-            />
-          </View>
-        )}
-      </Card>
+      <TallerOkAuthSection variant="account" />
+
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>Otro sistema</Text>
+        <View style={styles.dividerLine} />
+      </View>
 
       <Card>
-        <Text style={styles.label}>Conexión CRABB API</Text>
+        <Text style={styles.crabbBrand}>CRABB</Text>
+        <Text style={styles.label}>Conexión API CRABB</Text>
         {!isApiConfigured ? (
           <Text style={styles.muted}>
             API no configurada. Definí EXPO_PUBLIC_API_URL en .env para conectar con CRABB.
@@ -262,6 +176,8 @@ export default function PersonalizacionScreen() {
           </View>
         )}
       </Card>
+
+      <TallerOkDebugPanel connectionMode={connectionMode} />
 
       <Card>
         <Text style={styles.label}>Logo del taller</Text>
@@ -362,6 +278,29 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: TalleriaColors.textMuted,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginVertical: 4,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: TalleriaColors.border,
+  },
+  dividerText: {
+    fontSize: 12,
+    color: TalleriaColors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  crabbBrand: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: TalleriaColors.textMuted,
+    marginBottom: -4,
   },
   label: {
     fontSize: 14,

@@ -163,7 +163,12 @@ export default function VehiculoScreen() {
         <Text style={styles.section}>Historial</Text>
         {historialItems.length === 0 ? (
           <Card>
-            <Text style={styles.muted}>Sin historial registrado todavía.</Text>
+            <Text style={styles.emptyTitle}>Sin historial</Text>
+            <Text style={styles.muted}>
+              {isTallerOkAuth
+                ? 'Este vehículo todavía no tiene órdenes ni servicios registrados en la API. El historial completo estará disponible cuando se implementen las órdenes de trabajo.'
+                : 'Sin historial registrado todavía.'}
+            </Text>
           </Card>
         ) : (
           historialItems.map((item) => (
@@ -243,6 +248,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: TalleriaColors.text,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: TalleriaColors.text,
+    marginBottom: 4,
   },
   row: {
     flexDirection: 'row',
