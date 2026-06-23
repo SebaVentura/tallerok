@@ -6,6 +6,7 @@ import { Card } from '@/components/talleria/Card';
 import { PrimaryButton } from '@/components/talleria/PrimaryButton';
 import { TalleriaColors } from '@/constants/theme';
 import { env } from '@/config/env';
+import { isTallerOkApiConfigured, TALLEROK_API_URL } from '@/config/tallerokEnv';
 import { useTallerOkAuth } from '@/hooks/useTallerOkAuth';
 import { checkHealth } from '@/services/tallerok/tallerokHealthApi';
 import {
@@ -103,10 +104,13 @@ export function TallerOkDebugPanel({ connectionMode }: TallerOkDebugPanelProps) 
   return (
     <Card>
       <Text style={styles.sectionTitle}>Debug API TallerOK</Text>
-      <Text style={styles.label}>URL base</Text>
-      <Text style={styles.valueMono}>
-        {env.isTallerOkApiConfigured ? env.tallerokApiUrl : 'No configurada'}
-      </Text>
+      <Text style={styles.label}>API URL</Text>
+      <Text style={styles.valueMono}>{TALLEROK_API_URL}</Text>
+
+      <View style={styles.row}>
+        <Text style={styles.label}>Env configurado</Text>
+        <Text style={styles.value}>{isTallerOkApiConfigured ? 'Sí' : 'No'}</Text>
+      </View>
 
       <View style={styles.row}>
         <Text style={styles.label}>Estado</Text>
@@ -138,7 +142,7 @@ export function TallerOkDebugPanel({ connectionMode }: TallerOkDebugPanelProps) 
         <PrimaryButton
           title={isTestingConnection ? 'Probando…' : 'Probar conexión'}
           onPress={handleTestConnection}
-          disabled={!env.isTallerOkApiConfigured || isTestingConnection}
+          disabled={isTestingConnection}
         />
         <PrimaryButton
           title={isTestingMe ? 'Probando /me…' : 'Probar /me'}

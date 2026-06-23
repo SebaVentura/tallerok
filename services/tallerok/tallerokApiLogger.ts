@@ -1,3 +1,4 @@
+import { TALLEROK_API_URL } from '@/config/tallerokEnv';
 import { env } from '@/config/env';
 
 export type TallerOkApiLogEntry = {
@@ -51,7 +52,7 @@ export function logTallerOkApiRequest(entry: Omit<TallerOkApiLogEntry, 'timestam
   const fullEntry: TallerOkApiLogEntry = {
     ...entry,
     timestamp: new Date().toISOString(),
-    baseUrl: env.tallerokApiUrl,
+    baseUrl: TALLEROK_API_URL,
   };
 
   updateSummary(fullEntry);

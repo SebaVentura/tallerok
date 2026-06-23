@@ -13,6 +13,8 @@ import { ConnectionBadge } from '@/components/talleria/ConnectionBadge';
 import { Card } from '@/components/talleria/Card';
 import { PrimaryButton } from '@/components/talleria/PrimaryButton';
 import { TalleriaColors } from '@/constants/theme';
+import { env } from '@/config/env';
+import { TALLEROK_API_URL } from '@/config/tallerokEnv';
 import { useTallerOkAuth } from '@/hooks/useTallerOkAuth';
 
 type AuthTab = 'login' | 'register';
@@ -38,6 +40,8 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
     registerTaller,
     logout,
     continueAsDemo,
+    disableDemoMode,
+    switchToDemoMode,
     clearAuthError,
     clearSessionExpired,
   } = useTallerOkAuth();
@@ -53,6 +57,7 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
   const [tallerRubro, setTallerRubro] = useState(RUBROS[0]);
   const [ownerNombre, setOwnerNombre] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAccountAction, setIsAccountAction] = useState(false);
 
   const switchTab = (tab: AuthTab) => {
     setActiveTab(tab);
@@ -119,6 +124,40 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
     router.replace('/(tabs)');
   };
 
+  const handleDisableDemo = async () => {
+    setIsAccountAction(true);
+    try {
+      await disableDemoMode();
+      router.replace('/');
+    } finally {
+      setIsAccountAction(false);
+    }
+  };
+
+  const handleConnectTallerOk = async () => {
+    setIsAccountAction(true);
+    try {
+      await disableDemoMode();
+      router.replace('/');
+    } finally {
+      setIsAccountAction(false);
+    }
+  };
+
+  const handleSwitchToDemo = async () => {
+    setIsAccountAction(true);
+    try {
+      await switchToDemoMode();
+      router.replace('/(tabs)');
+    } finally {
+      setIsAccountAction(false);
+    }
+  };
+
+  const handleGoToLogin = () => {
+    router.replace('/');
+  };
+
   const passwordsMismatch =
     activeTab === 'register' && confirmPassword.length > 0 && password !== confirmPassword;
 
@@ -133,34 +172,60 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
   if (variant === 'account') {
     return (
       <Card>
-        <Text style={styles.label}>Cuenta TallerOK</Text>
         {isAuthenticated ? (
           <View style={styles.sessionBlock}>
-            <View style={styles.successBanner}>
-              <Text style={styles.successBannerText}>Conectado a TallerOK</Text>
-            </View>
-            <Text style={styles.value}>{user?.nombre ?? 'Usuario'}</Text>
-            <Text style={styles.muted}>{user?.email}</Text>
-            {taller ? (
-              <>
-                <Text style={styles.detalle}>Taller: {taller.nombre}</Text>
-                {taller.telefono ? <Text style={styles.detalle}>Tel: {taller.telefono}</Text> : null}
-              </>
-            ) : null}
-            <PrimaryButton title="Cerrar sesión TallerOK" onPress={handleLogout} />
+            <Text style={styles.label}>Cuenta TallerOK</Text>
+            <ConnectionBadge mode="tallerok_connected" compact />
+            <Text style={styles.muted}>Conectado como {user?.email ?? '—'}</Text>
+            <Text style={styles.detalle}>Taller: {taller?.nombre ?? '—'}</Text>
+            <PrimaryButton
+              title={isAccountAction ? 'Cerrando sesión…' : 'Cerrar sesión'}
+              onPress={handleLogout}
+              disabled={isAccountAction}
+            />
+            <Pressable
+              onPress={handleSwitchToDemo}
+              disabled={isAccountAction}
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryPressed]}
+              accessibilityRole="button">
+              <Text style={styles.secondaryButtonText}>
+                {isAccountAction ? 'Cambiando…' : 'Cambiar a modo demo'}
+              </Text>
+            </Pressable>
           </View>
         ) : isDemoMode ? (
           <View style={styles.sessionBlock}>
+            <Text style={styles.label}>Modo demo</Text>
             <ConnectionBadge mode="demo" compact />
             <Text style={styles.muted}>
-              Estás usando datos de demostración. Conectá tu taller para ver información real.
+              Estás usando datos de prueba. Podés conectar un taller real cuando quieras.
             </Text>
-            <PrimaryButton title="Conectar TallerOK" onPress={() => router.replace('/')} />
+            <PrimaryButton
+              title="Conectar TallerOK"
+              onPress={handleConnectTallerOk}
+              disabled={isAccountAction}
+            />
+            <Pressable
+              onPress={handleDisableDemo}
+              disabled={isAccountAction}
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryPressed]}
+              accessibilityRole="button">
+              <Text style={styles.secondaryButtonText}>
+                {isAccountAction ? 'Desactivando…' : 'Desactivar modo demo'}
+              </Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.sessionBlock}>
-            <Text style={styles.muted}>No hay sesión TallerOK activa.</Text>
-            <PrimaryButton title="Ir a login" onPress={() => router.replace('/')} />
+            <Text style={styles.label}>Cuenta TallerOK</Text>
+            <Text style={styles.muted}>No hay una sesión activa.</Text>
+            <PrimaryButton title="Ir a login" onPress={handleGoToLogin} />
+            <Pressable
+              onPress={handleContinueDemo}
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryPressed]}
+              accessibilityRole="button">
+              <Text style={styles.secondaryButtonText}>Continuar en modo demo</Text>
+            </Pressable>
           </View>
         )}
       </Card>
@@ -170,16 +235,18 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
   return (
     <Card>
       {!isTallerOkApiConfigured ? (
-        <View style={styles.sessionBlock}>
-          <Text style={styles.muted}>
-            API no configurada. Definí EXPO_PUBLIC_TALLEROK_API_URL en .env para conectar con
-            TallerOK.
+        <View style={styles.warningBanner}>
+          <Text style={styles.warningBannerText}>
+            La URL de API no está configurada. Revisá EXPO_PUBLIC_TALLEROK_API_URL en .env
           </Text>
-          <Pressable onPress={handleContinueDemo} style={styles.demoLink} accessibilityRole="button">
-            <Text style={styles.demoLinkText}>Continuar en modo demo →</Text>
-          </Pressable>
         </View>
-      ) : isLoading ? (
+      ) : null}
+
+      {env.isDevelopment ? (
+        <Text style={styles.devApiUrl}>API: {TALLEROK_API_URL}</Text>
+      ) : null}
+
+      {isLoading ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={TalleriaColors.accent} />
           <Text style={styles.muted}>Restaurando sesión TallerOK…</Text>
@@ -469,6 +536,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  warningBanner: {
+    backgroundColor: `${TalleriaColors.accent}12`,
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: `${TalleriaColors.accent}33`,
+    marginBottom: 4,
+  },
+  warningBannerText: {
+    color: TalleriaColors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  devApiUrl: {
+    fontSize: 11,
+    color: TalleriaColors.textMuted,
+    fontFamily: 'monospace',
+    marginBottom: 4,
+  },
   demoLink: {
     alignSelf: 'center',
     paddingVertical: 8,
@@ -483,5 +569,22 @@ const styles = StyleSheet.create({
     color: TalleriaColors.textMuted,
     textAlign: 'center',
     lineHeight: 17,
+  },
+  secondaryButton: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: TalleriaColors.border,
+    backgroundColor: TalleriaColors.surface,
+  },
+  secondaryPressed: {
+    opacity: 0.85,
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: TalleriaColors.text,
   },
 });

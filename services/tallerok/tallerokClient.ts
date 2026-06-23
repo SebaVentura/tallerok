@@ -1,9 +1,24 @@
-import { assertTallerOkApiConfigured, env } from '@/config/env';
+import { env } from '@/config/env';
+import {
+  assertTallerOkApiConfigured,
+  TALLEROK_API_URL,
+} from '@/config/tallerokEnv';
 import { logTallerOkApiRequest } from '@/services/tallerok/tallerokApiLogger';
 import { clearTallerOkToken, getTallerOkToken } from '@/services/tallerok/tallerokTokenStorage';
 import type { TallerOkApiErrorBody } from '@/types/tallerokApi';
 
 const DEFAULT_TIMEOUT_MS = 20_000;
+
+let hasLoggedBaseUrl = false;
+
+function logBaseUrlOnce(): void {
+  if (hasLoggedBaseUrl || !env.isDevelopment) {
+    return;
+  }
+
+  hasLoggedBaseUrl = true;
+  console.log('[TallerOK API] baseUrl:', TALLEROK_API_URL);
+}
 
 export class TallerOkApiError extends Error {
   readonly status: number;
@@ -55,8 +70,9 @@ function formatErrorMessage(status: number, body: TallerOkApiErrorBody | null): 
 
 function buildUrl(path: string): string {
   assertTallerOkApiConfigured();
+  logBaseUrlOnce();
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${env.tallerokApiUrl}${normalizedPath}`;
+  return `${TALLEROK_API_URL}${normalizedPath}`;
 }
 
 async function request<T>(

@@ -10,6 +10,9 @@ export async function saveDemoModeChosen(chosen: boolean): Promise<void> {
   await AsyncStorage.removeItem(DEMO_MODE_KEY);
 }
 
+/** Alias con nombre más explícito. */
+export const setDemoModeChosen = saveDemoModeChosen;
+
 export async function getDemoModeChosen(): Promise<boolean> {
   const value = await AsyncStorage.getItem(DEMO_MODE_KEY);
   return value === '1';

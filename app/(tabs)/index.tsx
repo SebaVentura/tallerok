@@ -132,7 +132,8 @@ export default function DashboardScreen() {
         <View style={styles.demoBanner}>
           <Text style={styles.demoBannerTitle}>Modo demo activo</Text>
           <Text style={styles.demoBannerText}>
-            Estás viendo datos de ejemplo. Conectá tu taller desde la pantalla de inicio.
+            Estás viendo datos de ejemplo. Conectá tu taller desde la pantalla de inicio o desactivá
+            el demo en Estilo.
           </Text>
         </View>
       ) : null}
@@ -140,7 +141,7 @@ export default function DashboardScreen() {
       {isTallerOkAuth && tallerOk ? (
         <Card>
           <Text style={styles.socioSectionLabel}>Conectado a TallerOK</Text>
-          <Text style={styles.socioNombre}>{tallerOk.nombre}</Text>
+          <Text style={styles.socioNombre}>Conectado a TallerOK: {tallerOk.nombre}</Text>
           {tallerOkUser?.email ? <Text style={styles.socioDetalle}>{tallerOkUser.email}</Text> : null}
         </Card>
       ) : null}
