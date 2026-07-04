@@ -34,15 +34,22 @@ export function normalizeTallerOkTaller(
   };
 }
 
-export function normalizeTallerOkCliente(raw: TallerOkCliente & WithMongoId): TallerOkCliente {
+export function normalizeTallerOkCliente(
+  raw: TallerOkCliente & WithMongoId & { dni?: string | null },
+): TallerOkCliente {
   return {
     ...raw,
     id: resolveId(raw),
+    documento: raw.documento ?? raw.dni ?? null,
   };
 }
 
 export function normalizeTallerOkVehiculo(
-  raw: TallerOkVehiculo & WithMongoId & { kilometraje?: number; año?: number },
+  raw: TallerOkVehiculo & WithMongoId & {
+    kilometraje?: number;
+    año?: number;
+    observaciones?: string | null;
+  },
 ): TallerOkVehiculo {
   return {
     ...raw,
@@ -50,6 +57,7 @@ export function normalizeTallerOkVehiculo(
     clienteId: resolveClienteId(raw),
     anio: raw.anio ?? raw.año ?? null,
     km: raw.km ?? raw.kilometraje ?? null,
+    notas: raw.notas ?? raw.observaciones ?? null,
   };
 }
 

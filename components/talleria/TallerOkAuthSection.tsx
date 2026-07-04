@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +15,8 @@ import { TalleriaColors } from '@/constants/theme';
 import { env } from '@/config/env';
 import { TALLEROK_API_URL } from '@/config/tallerokEnv';
 import { useTallerOkAuth } from '@/hooks/useTallerOkAuth';
+import { navigateToWelcome } from '@/lib/navigateToWelcome';
+import { validateLoginForm, validateRegisterForm } from '@/lib/tallerokAuthValidation';
 
 type AuthTab = 'login' | 'register';
 
@@ -26,7 +27,6 @@ type TallerOkAuthSectionProps = {
 const RUBROS = ['Mecánica general', 'Chapa y pintura', 'Gomería', 'Electricidad', 'Otro'];
 
 export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSectionProps) {
-  const router = useRouter();
   const {
     isTallerOkApiConfigured,
     isAuthenticated,
@@ -58,10 +58,12 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
   const [ownerNombre, setOwnerNombre] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAccountAction, setIsAccountAction] = useState(false);
+  const [formValidationError, setFormValidationError] = useState<string | null>(null);
 
   const switchTab = (tab: AuthTab) => {
     setActiveTab(tab);
     setSuccessMessage(null);
+    setFormValidationError(null);
     clearAuthError();
     clearSessionExpired();
   };
@@ -70,12 +72,19 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
     clearAuthError();
     clearSessionExpired();
     setSuccessMessage(null);
+    setFormValidationError(null);
+
+    const validation = validateLoginForm(email, password);
+    if (!validation.ok) {
+      setFormValidationError(validation.message);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await login({ email: email.trim(), password });
       setSuccessMessage('Sesión iniciada correctamente.');
       setPassword('');
-      router.replace('/(tabs)');
     } catch {
       // authError queda en contexto
     } finally {
@@ -86,7 +95,19 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
   const handleRegister = async () => {
     clearAuthError();
     setSuccessMessage(null);
-    if (password !== confirmPassword) return;
+    setFormValidationError(null);
+
+    const validation = validateRegisterForm({
+      tallerNombre,
+      ownerNombre,
+      email,
+      password,
+      confirmPassword,
+    });
+    if (!validation.ok) {
+      setFormValidationError(validation.message);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -102,7 +123,6 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
       setSuccessMessage('Cuenta creada. Ya podés usar datos reales del taller.');
       setPassword('');
       setConfirmPassword('');
-      router.replace('/(tabs)');
     } catch {
       // authError queda en contexto
     } finally {
@@ -111,24 +131,26 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
   };
 
   const handleLogout = async () => {
-    await logout();
-    setSuccessMessage(null);
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
-    router.replace('/');
+    setIsAccountAction(true);
+    try {
+      await logout();
+      setSuccessMessage(null);
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+    } finally {
+      setIsAccountAction(false);
+    }
   };
 
   const handleContinueDemo = async () => {
     await continueAsDemo();
-    router.replace('/(tabs)');
   };
 
   const handleDisableDemo = async () => {
     setIsAccountAction(true);
     try {
       await disableDemoMode();
-      router.replace('/');
     } finally {
       setIsAccountAction(false);
     }
@@ -138,7 +160,6 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
     setIsAccountAction(true);
     try {
       await disableDemoMode();
-      router.replace('/');
     } finally {
       setIsAccountAction(false);
     }
@@ -148,14 +169,13 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
     setIsAccountAction(true);
     try {
       await switchToDemoMode();
-      router.replace('/(tabs)');
     } finally {
       setIsAccountAction(false);
     }
   };
 
   const handleGoToLogin = () => {
-    router.replace('/');
+    navigateToWelcome();
   };
 
   const passwordsMismatch =
@@ -166,7 +186,7 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
     tallerNombre.trim().length > 0 &&
     ownerNombre.trim().length > 0 &&
     email.trim().length > 0 &&
-    password.length >= 6 &&
+    password.length >= 8 &&
     password === confirmPassword;
 
   if (variant === 'account') {
@@ -350,7 +370,7 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
             style={styles.input}
             value={password}
             onChangeText={setPassword}
-            placeholder="Mínimo 6 caracteres"
+            placeholder="Mínimo 8 caracteres"
             placeholderTextColor={TalleriaColors.textMuted}
             secureTextEntry
             textContentType="password"
@@ -374,6 +394,7 @@ export function TallerOkAuthSection({ variant = 'welcome' }: TallerOkAuthSection
             </>
           ) : null}
 
+          {formValidationError ? <Text style={styles.error}>{formValidationError}</Text> : null}
           {authError ? <Text style={styles.error}>{authError}</Text> : null}
           {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null}
 

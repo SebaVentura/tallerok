@@ -13,6 +13,7 @@ import { Card } from '@/components/talleria/Card';
 import { PrimaryButton } from '@/components/talleria/PrimaryButton';
 import { Screen } from '@/components/talleria/Screen';
 import { TallerOkAuthSection } from '@/components/talleria/TallerOkAuthSection';
+import { TallerOkTallerSection } from '@/components/talleria/TallerOkTallerSection';
 import { TallerOkDebugPanel } from '@/components/talleria/TallerOkDebugPanel';
 import { TalleriaColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -108,6 +109,7 @@ export default function PersonalizacionScreen() {
       </View>
 
       <TallerOkAuthSection variant="account" />
+      <TallerOkTallerSection />
 
       <View style={styles.divider}>
         <View style={styles.dividerLine} />

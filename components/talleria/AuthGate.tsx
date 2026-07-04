@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useEffect, type ReactNode } from 'react';
+import { Redirect } from 'expo-router';
+import { type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { TalleriaColors } from '@/constants/theme';
@@ -11,20 +11,12 @@ type AuthGateProps = {
 };
 
 export function AuthGate({ children }: AuthGateProps) {
-  const router = useRouter();
   const { isRestoring, connectionMode: crabbMode } = useAuth();
   const { isLoading, isAuthenticated, isDemoMode } = useTallerOkAuth();
 
   const isCrabbConnected = crabbMode === 'crabb_connected';
   const isBootstrapping = isLoading || isRestoring;
   const canAccess = isAuthenticated || isDemoMode || isCrabbConnected;
-
-  useEffect(() => {
-    if (isBootstrapping) return;
-    if (!canAccess) {
-      router.replace('/');
-    }
-  }, [canAccess, isBootstrapping, router]);
 
   if (isBootstrapping) {
     return (
@@ -36,12 +28,7 @@ export function AuthGate({ children }: AuthGateProps) {
   }
 
   if (!canAccess) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={TalleriaColors.accent} size="large" />
-        <Text style={styles.text}>Redirigiendo…</Text>
-      </View>
-    );
+    return <Redirect href="/" />;
   }
 
   return children;

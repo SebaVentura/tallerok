@@ -41,6 +41,7 @@ export function filterClientes(
         cliente.telefono,
         cliente.email,
         getDocumento(cliente),
+        cliente.direccion,
       ]
         .map(normalize)
         .join(' ');

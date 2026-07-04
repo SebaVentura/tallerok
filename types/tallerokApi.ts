@@ -54,6 +54,8 @@ export type TallerOkCliente = {
   nombre: string;
   telefono?: string | null;
   email?: string | null;
+  documento?: string | null;
+  direccion?: string | null;
   notas?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -63,6 +65,8 @@ export type TallerOkCreateClientePayload = {
   nombre: string;
   telefono?: string;
   email?: string;
+  documento?: string;
+  direccion?: string;
   notas?: string;
 };
 
@@ -90,6 +94,15 @@ export type TallerOkCreateVehiculoPayload = {
   km?: number;
   color?: string;
   notas?: string;
+  observaciones?: string;
+  kilometraje?: number;
+};
+
+export type TallerOkUpdateTallerPayload = {
+  nombre?: string;
+  telefono?: string;
+  direccion?: string;
+  rubro?: string;
 };
 
 export type TallerOkUpdateVehiculoPayload = Partial<TallerOkCreateVehiculoPayload>;

@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
@@ -35,7 +34,6 @@ function getConnectionStatusLabel(
 }
 
 export function TallerOkDebugPanel({ connectionMode }: TallerOkDebugPanelProps) {
-  const router = useRouter();
   const { isAuthenticated, refreshMe, logout } = useTallerOkAuth();
   const [logSummary, setLogSummary] = useState<TallerOkApiLogSummary>(() =>
     getTallerOkApiLogSummary(),
@@ -88,8 +86,7 @@ export function TallerOkDebugPanel({ connectionMode }: TallerOkDebugPanelProps) 
     setTestMessage(null);
     await logout();
     setTestMessage('Sesión TallerOK eliminada.');
-    router.replace('/');
-  }, [logout, router]);
+  }, [logout]);
 
   if (!env.isDevelopment) {
     return null;

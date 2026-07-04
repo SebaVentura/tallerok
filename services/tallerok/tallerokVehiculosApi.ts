@@ -1,4 +1,5 @@
 import { tallerokClient, TallerOkApiError } from '@/services/tallerok/tallerokClient';
+import { toApiVehiculoBody } from '@/services/tallerok/tallerokVehiculoPayload';
 import {
   normalizeTallerOkVehiculo,
   mapTallerOkHistorialToHistorialItem,
@@ -57,7 +58,7 @@ export async function createVehiculo(
 ): Promise<TallerOkVehiculo> {
   const response = await tallerokClient.post<TallerOkVehiculo>(
     `/clientes/${clienteId}/vehiculos`,
-    payload,
+    toApiVehiculoBody(payload),
     { auth: true },
   );
   return normalizeTallerOkVehiculo(response);
@@ -72,9 +73,11 @@ export async function updateVehiculo(
   id: string,
   payload: TallerOkUpdateVehiculoPayload,
 ): Promise<TallerOkVehiculo> {
-  const response = await tallerokClient.patch<TallerOkVehiculo>(`/vehiculos/${id}`, payload, {
-    auth: true,
-  });
+  const response = await tallerokClient.patch<TallerOkVehiculo>(
+    `/vehiculos/${id}`,
+    toApiVehiculoBody(payload),
+    { auth: true },
+  );
   return normalizeTallerOkVehiculo(response);
 }
 

@@ -163,10 +163,9 @@ export default function VehiculoScreen() {
         <Text style={styles.section}>Historial</Text>
         {historialItems.length === 0 ? (
           <Card>
-            <Text style={styles.emptyTitle}>Sin historial</Text>
             <Text style={styles.muted}>
               {isTallerOkAuth
-                ? 'Este vehículo todavía no tiene órdenes ni servicios registrados en la API. El historial completo estará disponible cuando se implementen las órdenes de trabajo.'
+                ? 'Todavía no hay órdenes registradas para este vehículo.'
                 : 'Sin historial registrado todavía.'}
             </Text>
           </Card>

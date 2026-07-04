@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +13,8 @@ import {
 
 import { ConnectionBadge } from '@/components/talleria/ConnectionBadge';
 import { Card } from '@/components/talleria/Card';
+import { ClienteFormModal } from '@/components/talleria/ClienteFormModal';
+import { PrimaryButton } from '@/components/talleria/PrimaryButton';
 import { Screen } from '@/components/talleria/Screen';
 import { TalleriaColors } from '@/constants/theme';
 import { clientes as mockClientes, getVehiculosByCliente } from '@/data/mock';
@@ -24,7 +26,7 @@ import {
 } from '@/services/tallerok/tallerokClientesFilter';
 import { mapTallerOkClienteToCliente } from '@/services/tallerok/tallerokMappers';
 import { TallerOkApiError } from '@/services/tallerok/tallerokClient';
-import { listClientes } from '@/services/tallerok/tallerokClientesApi';
+import { listClientes, createCliente } from '@/services/tallerok/tallerokClientesApi';
 import { listVehiculosByCliente } from '@/services/tallerok/tallerokVehiculosApi';
 import type { Cliente } from '@/types/talleria';
 import type { TallerOkCliente, TallerOkVehiculo } from '@/types/tallerokApi';
@@ -166,6 +168,8 @@ export default function ClientesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ClientesSearchFilters>(EMPTY_FILTERS);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const loadClientes = useCallback(async () => {
     if (!isTallerOkAuth) {
@@ -233,13 +237,37 @@ export default function ClientesScreen() {
     return mockClientes.filter((c) => filteredIds.has(c.id));
   }, [filters]);
 
-  const handleClientePress = (vehiculos: { id: string }[], clienteNombre: string) => {
+  const handleClientePress = (
+    clienteId: string,
+    vehiculos: { id: string }[],
+    clienteNombre: string,
+  ) => {
+    if (isTallerOkAuth) {
+      router.push(`/(flow)/cliente/${clienteId}` as Href);
+      return;
+    }
     const primerVehiculo = vehiculos[0];
     if (primerVehiculo) {
       router.push(`/(flow)/vehiculo/${primerVehiculo.id}`);
       return;
     }
     Alert.alert('Sin vehículos', `${clienteNombre} no tiene vehículos cargados todavía.`);
+  };
+
+  const handleCreateCliente = async (values: Parameters<typeof createCliente>[0]) => {
+    setIsCreating(true);
+    try {
+      await createCliente(values);
+      setShowCreateModal(false);
+      await loadClientes();
+    } catch (err) {
+      const message =
+        err instanceof TallerOkApiError ? err.message : 'No se pudo crear el cliente.';
+      Alert.alert('Error', message);
+      throw err;
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const clearFilters = () => setFilters(EMPTY_FILTERS);
@@ -265,6 +293,10 @@ export default function ClientesScreen() {
         showAdvanced={showAdvanced}
         onToggleAdvanced={() => setShowAdvanced((prev) => !prev)}
       />
+
+      {isTallerOkAuth ? (
+        <PrimaryButton title="Nuevo cliente" onPress={() => setShowCreateModal(true)} />
+      ) : null}
 
       {isLoading ? (
         <View style={styles.centerRow}>
@@ -302,7 +334,7 @@ export default function ClientesScreen() {
               key={cliente.id}
               cliente={cliente}
               vehiculos={vehiculos}
-              onPress={() => handleClientePress(vehiculos, cliente.nombre)}
+              onPress={() => handleClientePress(cliente.id, vehiculos, cliente.nombre)}
             />
           ))
         : filteredMockClientes.map((cliente) => {
@@ -312,10 +344,20 @@ export default function ClientesScreen() {
                 key={cliente.id}
                 cliente={cliente}
                 vehiculos={vehiculosCliente}
-                onPress={() => handleClientePress(vehiculosCliente, cliente.nombre)}
+                onPress={() =>
+                  handleClientePress(cliente.id, vehiculosCliente, cliente.nombre)
+                }
               />
             );
           })}
+
+      <ClienteFormModal
+        visible={showCreateModal}
+        title="Nuevo cliente"
+        isSubmitting={isCreating}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={handleCreateCliente}
+      />
     </Screen>
   );
 }
