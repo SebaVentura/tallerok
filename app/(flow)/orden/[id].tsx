@@ -7,6 +7,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { Badge } from '@/components/talleria/Badge';
 import { Card } from '@/components/talleria/Card';
 import { FlowNavBar } from '@/components/talleria/FlowNavBar';
+import { OrdenApiDetail } from '@/components/talleria/OrdenApiDetail';
 import { PrimaryButton } from '@/components/talleria/PrimaryButton';
 import { Screen } from '@/components/talleria/Screen';
 import { TalleriaColors } from '@/constants/theme';
@@ -32,8 +33,19 @@ import {
   getOrden,
   getVehiculo,
 } from '@/data/mock';
+import { useTallerOkAuth } from '@/hooks/useTallerOkAuth';
 
 export default function OrdenScreen() {
+  const { isAuthenticated: isTallerOkAuth } = useTallerOkAuth();
+
+  if (isTallerOkAuth) {
+    return <OrdenApiDetail />;
+  }
+
+  return <OrdenDemoScreen />;
+}
+
+function OrdenDemoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const orden = getOrden(id ?? '');

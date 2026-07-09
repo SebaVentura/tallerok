@@ -7,27 +7,31 @@ export type TallerOkUserRole =
   | 'solo_lectura'
   | string;
 
+/** Usuario de sesión TallerOK — siempre `name`, nunca `nombre`. */
 export type TallerOkUser = {
   id: string;
-  nombre: string;
   email: string;
+  name: string;
   role: TallerOkUserRole;
 };
 
 export type TallerOkTaller = {
   id: string;
   nombre: string;
+  email?: string | null;
   telefono?: string | null;
   direccion?: string | null;
   rubro?: string | null;
-  email?: string | null;
 };
 
-export type TallerOkAuthResponse = {
+/** Forma canónica de sesión real en la app. */
+export type TallerOkSession = {
   accessToken: string;
   user: TallerOkUser;
   taller: TallerOkTaller;
 };
+
+export type TallerOkAuthResponse = TallerOkSession;
 
 export type TallerOkMeResponse = {
   user: TallerOkUser;
@@ -109,11 +113,16 @@ export type TallerOkUpdateVehiculoPayload = Partial<TallerOkCreateVehiculoPayloa
 
 export type TallerOkHistorialItem = {
   id: string;
-  vehiculoId: string;
-  fecha: string;
-  motivo: string;
-  estado: string;
+  vehiculoId?: string;
+  tipo?: string | null;
   ordenId?: string | null;
+  titulo?: string | null;
+  descripcion?: string | null;
+  /** @deprecated usar descripcion o titulo */
+  motivo?: string;
+  estado: string;
+  fecha: string;
+  kilometraje?: number | null;
 };
 
 export type TallerOkActividadReciente = {
@@ -148,4 +157,83 @@ export type TallerOkTallerSettings = {
   accentColor?: string;
   logoUrl?: string | null;
   [key: string]: unknown;
+};
+
+export type TallerOkOrdenEstado =
+  | 'pendiente'
+  | 'en_proceso'
+  | 'esperando_repuesto'
+  | 'listo'
+  | 'entregado'
+  | 'cancelado';
+
+export type TallerOkOrdenTarea = {
+  id?: string;
+  descripcion: string;
+  /** API usa `realizada`; legacy interno `completada` */
+  realizada?: boolean;
+  completada?: boolean;
+};
+
+export type TallerOkOrdenRepuesto = {
+  id?: string;
+  nombre: string;
+  cantidad?: number;
+  precio?: number;
+};
+
+export type TallerOkOrden = {
+  id: string;
+  numero?: string | null;
+  vehiculoId: string;
+  clienteId?: string | null;
+  estado: TallerOkOrdenEstado;
+  motivoIngreso: string;
+  kilometrajeIngreso?: number | null;
+  diagnosticoNotas?: string | null;
+  tareas: TallerOkOrdenTarea[];
+  repuestos?: TallerOkOrdenRepuesto[];
+  observacionesInternas?: string | null;
+  resumenCliente?: string | null;
+  fechaIngreso?: string | null;
+  fechaFinalizacion?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  vehiculo?: TallerOkVehiculo;
+  cliente?: TallerOkCliente;
+};
+
+export type TallerOkCreateOrdenPayload = {
+  vehiculoId: string;
+  clienteId?: string;
+  motivoIngreso: string;
+  kilometrajeIngreso?: number;
+  diagnosticoNotas?: string;
+  tareas?: TallerOkOrdenTarea[];
+  observacionesInternas?: string;
+};
+
+export type TallerOkUpdateOrdenPayload = {
+  estado?: TallerOkOrdenEstado;
+  motivoIngreso?: string;
+  kilometrajeIngreso?: number;
+  diagnosticoNotas?: string;
+  tareas?: TallerOkOrdenTarea[];
+  observacionesInternas?: string;
+};
+
+export type TallerOkOrdenesListResponse = {
+  items: TallerOkOrden[];
+  meta?: {
+    total?: number;
+    page?: number;
+    perPage?: number;
+  };
+};
+
+export type TallerOkListOrdenesParams = {
+  estado?: TallerOkOrdenEstado | string;
+  vehiculoId?: string;
+  clienteId?: string;
+  q?: string;
 };

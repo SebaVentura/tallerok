@@ -1,3 +1,9 @@
+/**
+ * Pantalla MOCK / DEMO de diagnóstico con IA, audio y evidencias simuladas.
+ * En modo real el diagnóstico inicial se carga como parte de una orden.
+ * La pantalla diagnostico/[vehiculoId] queda reservada para demo/mock.
+ * Flujo real: `/(flow)/orden/nueva?clienteId=…&vehiculoId=…`.
+ */
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';

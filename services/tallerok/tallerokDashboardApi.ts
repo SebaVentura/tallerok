@@ -1,5 +1,5 @@
 import { tallerokClient } from '@/services/tallerok/tallerokClient';
-import type { TallerOkDashboard } from '@/types/tallerokApi';
+import type { TallerOkActividadReciente, TallerOkDashboard } from '@/types/tallerokApi';
 
 const EMPTY_DASHBOARD: TallerOkDashboard = {
   clientesTotal: 0,
@@ -17,7 +17,18 @@ function normalizeDashboard(raw: TallerOkDashboard | { data?: TallerOkDashboard 
     vehiculosTotal: data.vehiculosTotal ?? 0,
     ordenesActivas: data.ordenesActivas ?? 0,
     presupuestosPendientes: data.presupuestosPendientes ?? 0,
-    actividadReciente: data.actividadReciente ?? [],
+    actividadReciente: (data.actividadReciente ?? []).map((item, index) => {
+      const rawItem = item as TallerOkActividadReciente & { _id?: string };
+      return {
+        id: rawItem.id ?? rawItem._id ?? `actividad-${index}`,
+        fecha: rawItem.fecha ?? '',
+        motivo: rawItem.motivo ?? '',
+        estado: rawItem.estado ?? '',
+        vehiculoId: rawItem.vehiculoId ?? null,
+        vehiculoPatente: rawItem.vehiculoPatente ?? null,
+        ordenId: rawItem.ordenId ?? null,
+      };
+    }),
   };
 }
 

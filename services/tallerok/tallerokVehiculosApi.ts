@@ -22,16 +22,16 @@ function normalizeVehiculoList(raw: unknown): TallerOkVehiculo[] {
   return list.map((item) => normalizeTallerOkVehiculo(item));
 }
 
-function normalizeHistorialList(raw: unknown): HistorialItem[] {
+function normalizeHistorialList(raw: unknown, vehiculoId?: string): HistorialItem[] {
   if (Array.isArray(raw)) {
     return raw.map((item) =>
-      mapTallerOkHistorialToHistorialItem(item as TallerOkHistorialItem),
+      mapTallerOkHistorialToHistorialItem(item as TallerOkHistorialItem, vehiculoId),
     );
   }
 
   const wrapped = raw as { data?: TallerOkHistorialItem[]; items?: TallerOkHistorialItem[] };
   const list = wrapped.data ?? wrapped.items ?? [];
-  return list.map((item) => mapTallerOkHistorialToHistorialItem(item));
+  return list.map((item) => mapTallerOkHistorialToHistorialItem(item, vehiculoId));
 }
 
 export async function listVehiculosByCliente(clienteId: string): Promise<TallerOkVehiculo[]> {
@@ -89,5 +89,5 @@ export async function getHistorialVehiculo(id: string): Promise<HistorialItem[]>
   const response = await tallerokClient.get<unknown>(`/vehiculos/${id}/historial`, {
     auth: true,
   });
-  return normalizeHistorialList(response);
+  return normalizeHistorialList(response, id);
 }

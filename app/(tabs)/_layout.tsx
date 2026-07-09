@@ -34,6 +34,15 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="ordenes"
+          options={{
+            title: 'Órdenes',
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={26} name="wrench.and.screwdriver.fill" color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="personalizacion"
           options={{
             title: 'Estilo',

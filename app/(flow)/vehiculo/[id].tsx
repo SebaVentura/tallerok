@@ -1,11 +1,12 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 
 import { Badge } from '@/components/talleria/Badge';
 import { Card } from '@/components/talleria/Card';
 import { FlowNavBar } from '@/components/talleria/FlowNavBar';
+import { OrdenEstadoBadge } from '@/components/talleria/OrdenEstadoBadge';
 import { PrimaryButton } from '@/components/talleria/PrimaryButton';
 import { Screen } from '@/components/talleria/Screen';
 import { TalleriaColors } from '@/constants/theme';
@@ -88,6 +89,33 @@ export default function VehiculoScreen() {
   const cliente = isTallerOkAuth ? clienteApi : clienteMock;
   const historialItems = isTallerOkAuth ? historialApi : historialMock;
   const orden = isTallerOkAuth ? undefined : ordenMock;
+  const resolveClienteId = (): string | undefined => {
+    if (clienteApi?.id) return clienteApi.id;
+    if (vehiculoApi?.clienteId) return vehiculoApi.clienteId;
+    return undefined;
+  };
+
+  // En modo real el diagnóstico inicial se carga como parte de una orden.
+  // La pantalla diagnostico/[vehiculoId] queda reservada para demo/mock.
+  const handleNuevoDiagnostico = () => {
+    if (!id) return;
+    const clienteId = resolveClienteId();
+    if (!clienteId) {
+      Alert.alert(
+        'No se puede iniciar',
+        'No encontramos el cliente asociado a este vehículo. Volvé a intentar o contactá soporte.',
+      );
+      return;
+    }
+    const params = new URLSearchParams({ vehiculoId: id, clienteId });
+    router.push(`/(flow)/orden/nueva?${params.toString()}` as Href);
+  };
+
+  const handleHistorialPress = (item: HistorialItem) => {
+    if (isTallerOkAuth && item.ordenId) {
+      router.push(`/(flow)/orden/${item.ordenId}` as const);
+    }
+  };
 
   if (isTallerOkAuth && isLoading) {
     return (
@@ -135,11 +163,17 @@ export default function VehiculoScreen() {
             ...(!isTallerOkAuth
               ? [
                   {
-                    label: 'Nuevo diagnóstico',
+                    // Mock/demo: diagnostico/[vehiculoId] no es flujo real todavía.
+                    label: 'Nuevo diagnóstico (demo)',
                     onPress: () => router.push(`/(flow)/diagnostico/${vehiculo.id}`),
                   },
                 ]
-              : []),
+              : [
+                  {
+                    label: 'Nuevo diagnóstico',
+                    onPress: handleNuevoDiagnostico,
+                  },
+                ]),
           ]}
         />
 
@@ -171,22 +205,36 @@ export default function VehiculoScreen() {
           </Card>
         ) : (
           historialItems.map((item) => (
-            <Card key={item.id}>
+            <Card
+              key={item.id}
+              onPress={
+                isTallerOkAuth && item.ordenId
+                  ? () => handleHistorialPress(item)
+                  : undefined
+              }>
               <View style={styles.row}>
                 <View style={styles.flex}>
                   <Text style={styles.value}>{item.motivo}</Text>
                   <Text style={styles.muted}>{item.fecha}</Text>
                 </View>
-                <Badge estado={item.estado} />
+                {isTallerOkAuth ? (
+                  <OrdenEstadoBadge estado={item.estado} />
+                ) : (
+                  <Badge estado={item.estado} />
+                )}
               </View>
             </Card>
           ))
         )}
 
+        {isTallerOkAuth ? (
+          <PrimaryButton title="Nuevo diagnóstico" onPress={handleNuevoDiagnostico} />
+        ) : null}
+
         {!isTallerOkAuth ? (
           <>
             <PrimaryButton
-              title="Diagnóstico IA"
+              title="Diagnóstico IA (demo)"
               onPress={() => router.push(`/(flow)/diagnostico/${vehiculo.id}`)}
             />
 

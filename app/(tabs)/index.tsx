@@ -138,7 +138,7 @@ export default function DashboardScreen() {
         </View>
       ) : null}
 
-      {isTallerOkAuth && tallerOk ? (
+      {isTallerOkAuth && tallerOk?.nombre ? (
         <Card>
           <Text style={styles.socioSectionLabel}>Conectado a TallerOK</Text>
           <Text style={styles.socioNombre}>Conectado a TallerOK: {tallerOk.nombre}</Text>

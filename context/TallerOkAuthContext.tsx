@@ -21,7 +21,8 @@ import {
   subscribeTallerOkApiLog,
   type TallerOkApiLogSummary,
 } from '@/services/tallerok/tallerokApiLogger';
-import { setTallerOkUnauthorizedHandler, TallerOkApiError } from '@/services/tallerok/tallerokClient';
+import { TallerOkApiError, setTallerOkUnauthorizedHandler } from '@/services/tallerok/tallerokClient';
+import { TallerOkSessionError } from '@/services/tallerok/tallerokSessionNormalize';
 import { getTallerOkToken } from '@/services/tallerok/tallerokTokenStorage';
 import type {
   TallerOkLoginPayload,
@@ -94,7 +95,7 @@ export function TallerOkAuthProvider({ children }: { children: ReactNode }) {
 
   const applySession = useCallback(
     (session: { user: TallerOkUser; taller: TallerOkTaller } | null, accessToken?: string | null) => {
-      if (session) {
+      if (session?.user?.id && session?.taller?.id) {
         setUser(session.user);
         setTaller(session.taller);
         if (accessToken) {
@@ -188,6 +189,7 @@ export function TallerOkAuthProvider({ children }: { children: ReactNode }) {
         await tallerokAuthApi.logoutLocal();
         if (mounted) {
           applySession(null);
+          setAuthError('No se pudo restaurar la sesión. Volvé a iniciar sesión.');
         }
       } finally {
         if (mounted) {
@@ -214,9 +216,11 @@ export function TallerOkAuthProvider({ children }: { children: ReactNode }) {
         const message =
           error instanceof TallerOkApiError
             ? error.message
-            : error instanceof Error
+            : error instanceof TallerOkSessionError
               ? error.message
-              : 'No se pudo iniciar sesión en TallerOK';
+              : error instanceof Error
+                ? error.message
+                : 'No se pudo iniciar sesión en TallerOK';
         setAuthError(message);
         throw error;
       }
@@ -237,9 +241,11 @@ export function TallerOkAuthProvider({ children }: { children: ReactNode }) {
         const message =
           error instanceof TallerOkApiError
             ? error.message
-            : error instanceof Error
+            : error instanceof TallerOkSessionError
               ? error.message
-              : 'No se pudo registrar el taller';
+              : error instanceof Error
+                ? error.message
+                : 'No se pudo registrar el taller';
         setAuthError(message);
         throw error;
       }

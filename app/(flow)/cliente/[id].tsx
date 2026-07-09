@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -137,6 +137,17 @@ export default function ClienteDetailScreen() {
     }
   };
 
+  // En modo real el diagnóstico inicial se carga como parte de una orden.
+  // La pantalla diagnostico/[vehiculoId] queda reservada para demo/mock.
+  const handleNuevoDiagnostico = (vehiculoId: string) => {
+    if (!cliente) return;
+    const params = new URLSearchParams({
+      clienteId: cliente.id,
+      vehiculoId,
+    });
+    router.push(`/(flow)/orden/nueva?${params.toString()}` as Href);
+  };
+
   if (!isTallerOkAuth) {
     return (
       <Screen title="Cliente">
@@ -193,19 +204,43 @@ export default function ClienteDetailScreen() {
         <Text style={styles.section}>Vehículos</Text>
         {vehiculos.length === 0 ? (
           <Card>
-            <Text style={styles.muted}>Este cliente no tiene vehículos cargados.</Text>
+            <Text style={styles.muted}>
+              Primero cargá un vehículo para iniciar un diagnóstico.
+            </Text>
           </Card>
         ) : (
           vehiculos.map((v) => (
-            <Card key={v.id} onPress={() => router.push(`/(flow)/vehiculo/${v.id}`)}>
-              <Text style={styles.nombre}>{v.patente}</Text>
-              <Text style={styles.detalle}>
-                {v.marca} {v.modelo}
-                {v.anio ? ` · ${v.anio}` : ''}
-              </Text>
+            <Card key={v.id}>
+              <Pressable onPress={() => router.push(`/(flow)/vehiculo/${v.id}`)}>
+                <Text style={styles.nombre}>{v.patente}</Text>
+                <Text style={styles.detalle}>
+                  {v.marca} {v.modelo}
+                  {v.anio ? ` · ${v.anio}` : ''}
+                </Text>
+              </Pressable>
+              {vehiculos.length > 1 ? (
+                <Pressable
+                  onPress={() => handleNuevoDiagnostico(v.id)}
+                  style={styles.diagnosticoLink}>
+                  <Text style={styles.diagnosticoLinkText}>Iniciar diagnóstico</Text>
+                </Pressable>
+              ) : null}
             </Card>
           ))
         )}
+
+        {vehiculos.length === 1 ? (
+          <PrimaryButton
+            title="Nuevo diagnóstico"
+            onPress={() => handleNuevoDiagnostico(vehiculos[0].id)}
+          />
+        ) : vehiculos.length > 1 ? (
+          <Card>
+            <Text style={styles.muted}>
+              Elegí un vehículo y tocá «Iniciar diagnóstico» para comenzar la orden.
+            </Text>
+          </Card>
+        ) : null}
 
         <PrimaryButton title="Agregar vehículo" onPress={() => setShowNewVehiculo(true)} />
 
@@ -265,5 +300,15 @@ const styles = StyleSheet.create({
     color: TalleriaColors.danger,
     fontWeight: '600',
     fontSize: 15,
+  },
+  diagnosticoLink: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+  },
+  diagnosticoLinkText: {
+    color: TalleriaColors.accent,
+    fontWeight: '600',
+    fontSize: 14,
   },
 });
