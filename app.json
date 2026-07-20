@@ -39,6 +39,16 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "TallerOK necesita acceder al micrófono para dictar la descripción de la orden.",
+          "speechRecognitionPermission": "TallerOK necesita reconocimiento de voz para convertir el dictado en texto.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
       ]
     ],
     "experiments": {

@@ -1,0 +1,154 @@
+{
+  "$schema": "internal://tallerok/architecture-exposure/v1",
+  "meta": {
+    "report": "architecture-exposure-baseline",
+    "app": "TallerOK",
+    "domain": "Taller mecánico (clientes / vehículos / órdenes / diagnóstico / presupuesto)",
+    "generatedAt": "2026-07-20",
+    "authorized": true,
+    "note": "Evidencia principal extraída del bundle Hermes productivo (no sólo del repositorio). El bundle se generó con `npx expo export --platform android`, que produce el mismo .hbc que consume el APK/AAB.",
+    "specMismatch": "El pedido incluía ejemplos de otra app (gimnasio: MiCarnetScreen, exchangeGymSession, reserveCreditSlot, piletas, créditos, MercadoPago, carnet/QR/Code128, profesor, Redux slices). Ninguno existe en este repo. Este informe se basa en el dominio real de TallerOK. No se generó código señuelo para simular esas features."
+  },
+  "toolchain": {
+    "expoSdk": "54",
+    "reactNative": "0.81.5",
+    "engine": "Hermes (bytecode .hbc)",
+    "router": "expo-router (file-based)",
+    "stateManagement": "React Context (NO Redux)",
+    "reactCompiler": true,
+    "newArch": true,
+    "minifyObserved": "Metro minify activo en producción, pero los NOMBRES de función sobreviven en la tabla de nombres de Hermes (usada para stack traces).",
+    "babelConfig": "Ausente (usa babel-preset-expo por defecto; sin transform-remove-console).",
+    "metroConfig": "Ausente (defaults de Expo)."
+  },
+  "bundle": {
+    "file": "_expo/static/js/android/entry-db90454442a63705ba5b85511272dcd5.hbc",
+    "sha256": "0D05017E0B94366B5CFA7E29F1D59A08F2A63C21589D992CCEEB6364DB285880",
+    "sizeBytes": 4186989,
+    "sizeMB": 4.19,
+    "sourceMapsEmitted": 0,
+    "extractionMethod": "printable-string scan (>=4 chars) + conteo de literales por regex"
+  },
+  "exposure": {
+    "screens": {
+      "risk": "alto",
+      "detail": "expo-router incrusta la RUTA DE ARCHIVO de desarrollo de cada pantalla en el bundle. Se recupera el árbol de navegación completo con nombres legibles.",
+      "recoverable": [
+        "app/index.tsx",
+        "app/modal.tsx",
+        "app/_layout.tsx",
+        "app/(tabs)/_layout.tsx",
+        "app/(tabs)/index.tsx",
+        "app/(tabs)/clientes.tsx",
+        "app/(tabs)/ordenes.tsx",
+        "app/(tabs)/explore.tsx",
+        "app/(tabs)/personalizacion.tsx",
+        "app/(flow)/_layout.tsx",
+        "app/(flow)/cliente/[id].tsx",
+        "app/(flow)/vehiculo/[id].tsx",
+        "app/(flow)/orden/[id].tsx",
+        "app/(flow)/orden/nueva.tsx",
+        "app/(flow)/diagnostico/[vehiculoId].tsx",
+        "app/(flow)/presupuesto/[ordenId].tsx",
+        "app/(flow)/resumen/[ordenId].tsx"
+      ],
+      "count": 17
+    },
+    "hosts": {
+      "risk": "medio",
+      "recoverable": [
+        "https://tallerok-api.crabbahia.com.ar/api"
+      ],
+      "secondaryBackendReferenced": "CRABB (paths tipo /mobile/auth/logout; base URL propia inyectada por EXPO_PUBLIC_API_URL, no fijada en el bundle base)"
+    },
+    "apiRoutes": {
+      "risk": "medio",
+      "recoverable": [
+        "/ordenes",
+        "/ordenes/:id",
+        "/clientes",
+        "/clientes/:id",
+        "/vehiculos",
+        "/dashboard",
+        "/presupuesto",
+        "/auth/login",
+        "/auth/register",
+        "/me",
+        "/mobile/auth/logout"
+      ]
+    },
+    "tokenNames": {
+      "risk": "medio",
+      "detail": "Claves de almacenamiento de sesión visibles como literales. No son secretos, pero revelan el esquema de sesión y facilitan tampering local.",
+      "recoverable": [
+        "@tallerok/access_token",
+        "@crabb/mobile_token"
+      ]
+    },
+    "sessionFlows": {
+      "risk": "medio",
+      "recoverable": [
+        "Bearer <token> en header Authorization",
+        "fallback de auth → GET /me",
+        "intercambio de sesión CRABB ↔ TallerOK",
+        "logout vía /mobile/auth/logout"
+      ]
+    },
+    "models": {
+      "risk": "bajo-medio",
+      "recoverable": [
+        "TallerOkOrden",
+        "TallerOkCliente",
+        "TallerOkVehiculo",
+        "TallerOkApiError",
+        "campos: diagnosticoNotas, motivoIngreso, kilometrajeIngreso, clienteId, vehiculoId, ordenId, tallerId"
+      ]
+    },
+    "roles": {
+      "risk": "bajo",
+      "recoverable": ["admin"],
+      "notFound": ["mecanico", "recepcion", "propietario"],
+      "detail": "La lógica de roles vive mayormente en backend; el frontend expone poco."
+    },
+    "functionAndSymbolNames": {
+      "risk": "medio",
+      "detail": "Aun con Metro minify, Hermes conserva nombres de función en su tabla de nombres para stack traces. Ejemplos reales recuperados:",
+      "recoverable": [
+        "unwrapAuthPayload"
+      ]
+    },
+    "architecturalMessages": {
+      "risk": "medio",
+      "detail": "console.* no eliminados en producción (no hay transform-remove-console). Revelan estructura y flujo.",
+      "recoverable": [
+        "[TallerOK API] baseUrl:",
+        "[TallerOK Auth] hasToken=",
+        "[TallerOK Auth] hasTaller=",
+        "[TallerOK Auth] <label> fallback → GET /me",
+        "[TallerOK Auth] response keys: ...",
+        "Conectado a CRABB",
+        "Datos desde API TallerOK",
+        "Datos desde CRABB",
+        "Identidad visual del taller",
+        "PDF DEBUG / ANTES generar PDF / DESPUES generar PDF (presupuesto)",
+        "[speech] / [diagnosis] / [TEMP-AUDIT] (logs temporales de auditoría de voz en curso)"
+      ]
+    },
+    "deepLinks": {
+      "risk": "medio",
+      "scheme": "tallerok://",
+      "detail": "Los deep links derivan 1:1 de las rutas de archivo de expo-router; opacar rutas rompería deep links salvo rediseño con alias."
+    }
+  },
+  "staticSecrets": {
+    "reusableStaticSecrets": 0,
+    "detail": "No se hallaron secretos estáticos reutilizables (API keys, credenciales, tokens embebidos). Sólo EXPO_PUBLIC_* (públicos por diseño) y URLs base."
+  },
+  "reconstructionDifficulty": {
+    "visualClone": "bajo",
+    "navigationReconstruction": "bajo",
+    "apiReconstruction": "bajo-medio",
+    "rulesReconstruction": "medio-alto",
+    "maintainableReplacement": "medio"
+  }
+}

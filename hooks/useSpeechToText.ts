@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
 
 import { logSpeech } from '@/services/speechLogger';
 import { shouldAcceptFinalTranscript } from '@/utils/speech/finalTranscriptDedup';
+import { previewText } from '@/utils/speech/previewText';
 import { loadSpeechRecognitionModule } from '@/utils/speech/loadSpeechRecognitionModule';
 import {
   getFallbackLanguage,
@@ -119,12 +120,15 @@ export function useSpeechToText({
 
   const beginRecognition = useCallback((nativeModule: SpeechRecognitionNativeModule, lang: string) => {
     currentLangRef.current = lang;
-    nativeModule.start({
-      lang,
-      interimResults: true,
-      continuous: true,
-    });
-    logSpeech('recognition started', { lang });
+    // `continuous: true` no está soportado en Android 12 y anteriores y puede
+    // iniciar el reconocedor sin entregar nunca un `result`. En Android usamos
+    // modo por-frase (corre hasta el primer `isFinal`); el usuario vuelve a
+    // tocar el micrófono para dictar otra frase y el texto se acumula.
+    const continuous = Platform.OS === 'ios';
+    const options = { lang, interimResults: true, continuous };
+    console.log('[speech] native start called', options); // temporal
+    nativeModule.start(options);
+    logSpeech('recognition started', { lang, continuous });
   }, []);
 
   const attachListeners = useCallback(
@@ -132,24 +136,54 @@ export function useSpeechToText({
       removeListeners();
 
       const subscriptions: ListenerSubscription[] = [
+        // [speech][TEMP-AUDIT] listener de diagnóstico — remover tras auditoría
+        nativeModule.addListener('speechstart', () => {
+          console.log('[speech] native event: speechstart');
+        }),
+        // [speech][TEMP-AUDIT] listener de diagnóstico — remover tras auditoría
+        nativeModule.addListener('audiostart', () => {
+          console.log('[speech] native event: audiostart');
+        }),
+        // [speech][TEMP-AUDIT] listener de diagnóstico — remover tras auditoría
+        nativeModule.addListener('nomatch', () => {
+          console.log('[speech] native event: nomatch (sin coincidencia reconocida)');
+        }),
         nativeModule.addListener('start', () => {
+          console.log('[speech] recognition started'); // [TEMP-AUDIT]
           sessionActiveRef.current = true;
           startInFlightRef.current = false;
           safeSetInterim('');
           safeSetState('listening');
         }),
         nativeModule.addListener('result', (event) => {
+          const resultEvent = event as SpeechRecognitionResultEvent;
+          const results = resultEvent.results ?? [];
+          const firstTranscript = results[0]?.transcript ?? '';
+          // [speech] result-shape — evidencia acotada de la forma real del evento nativo
+          console.log('[speech] result-shape', {
+            results: results.length,
+            alternatives: results.length,
+            first: previewText(firstTranscript),
+            isFinal: resultEvent.isFinal ?? null,
+            keys: Object.keys(resultEvent).join(','),
+            lang: currentLangRef.current,
+            at: Date.now(),
+          });
+
           if (!isMountedRef.current) {
             return;
           }
 
-          const resultEvent = event as SpeechRecognitionResultEvent;
-          const transcript = resultEvent.results[0]?.transcript?.trim() ?? '';
+          const transcript = firstTranscript.trim();
           if (!transcript) {
             return;
           }
 
           if (resultEvent.isFinal) {
+            console.log('[speech] final-extracted', {
+              length: transcript.length,
+              preview: previewText(transcript),
+            });
             if (shouldAcceptFinalTranscript(lastFinalTranscriptRef.current, transcript)) {
               lastFinalTranscriptRef.current = transcript;
               onFinalTranscriptRef.current(transcript);
@@ -158,9 +192,14 @@ export function useSpeechToText({
             return;
           }
 
+          console.log('[speech] partial-extracted', {
+            length: transcript.length,
+            preview: previewText(transcript),
+          });
           safeSetInterim(transcript);
         }),
         nativeModule.addListener('end', () => {
+          console.log('[speech] recognition ended'); // [TEMP-AUDIT]
           sessionActiveRef.current = false;
           startInFlightRef.current = false;
           safeSetInterim('');
@@ -168,11 +207,16 @@ export function useSpeechToText({
           logSpeech('recognition ended');
         }),
         nativeModule.addListener('error', (event) => {
+          const errorEvent = event as SpeechRecognitionErrorEvent;
+          // [TEMP-AUDIT] evidencia de errores nativos (no incluye datos sensibles)
+          console.error('[speech] recognition error', {
+            error: errorEvent.error,
+            message: errorEvent.message,
+          });
+
           if (!isMountedRef.current) {
             return;
           }
-
-          const errorEvent = event as SpeechRecognitionErrorEvent;
 
           if (errorEvent.error === 'aborted' && voluntaryCancelRef.current) {
             voluntaryCancelRef.current = false;
@@ -308,6 +352,11 @@ export function useSpeechToText({
       }
 
       const permission = await nativeModule.requestPermissionsAsync();
+      // [TEMP-AUDIT] resultado de permiso (sin datos sensibles)
+      console.log('[speech] permission result', {
+        granted: permission.granted,
+        canAskAgain: permission.canAskAgain,
+      });
 
       if (!isMountedRef.current) {
         return;
@@ -324,6 +373,11 @@ export function useSpeechToText({
 
       fallbackAttemptedRef.current = false;
       const lang = await resolveLanguage(nativeModule);
+      console.log('[speech] starting recognition', {
+        lang,
+        interimResults: true,
+        continuous: Platform.OS === 'ios',
+      }); // temporal
       beginRecognition(nativeModule, lang);
     } catch {
       if (!isMountedRef.current) {

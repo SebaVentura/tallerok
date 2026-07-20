@@ -1,0 +1,54 @@
+# EAS upload ignore. When present, EAS uses this INSTEAD of .gitignore to
+# decide which files are uploaded to the build servers / packaged.
+# It mirrors .gitignore and adds security-sensitive exclusions (Fase 6).
+
+# --- mirror of .gitignore ---
+node_modules/
+
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+.metro-health-check*
+
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+.DS_Store
+*.pem
+
+.env
+.env*.local
+
+*.tsbuildinfo
+
+app-example
+
+/ios
+/android
+
+# --- security additions (must NOT reach the build servers or the artifact) ---
+# Auditoría / reportes / pseudocódigo
+security-reports/
+dist-baseline/
+docs/
+
+# Backend NestJS que comparte el monorepo: no forma parte del artefacto móvil
+backend/
+
+# Source maps (diagnóstico privado, nunca dentro del APK/AAB)
+**/*.map
+
+# Editor / agente
+.claude/
+.vscode/

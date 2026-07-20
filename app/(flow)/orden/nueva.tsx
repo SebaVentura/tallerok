@@ -3,8 +3,8 @@
  * Crea una orden vía POST /ordenes (no existe endpoint /diagnosticos).
  * La pantalla diagnostico/[vehiculoId] queda reservada para demo/mock.
  */
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,8 +20,12 @@ import { DictadoTextArea } from '@/components/talleria/DictadoTextArea';
 import { FlowNavBar } from '@/components/talleria/FlowNavBar';
 import { PrimaryButton } from '@/components/talleria/PrimaryButton';
 import { Screen } from '@/components/talleria/Screen';
+import { SpeechDictationControl } from '@/components/talleria/SpeechDictationControl';
 import { TalleriaColors } from '@/constants/theme';
+import { useSpeechToText } from '@/hooks/useSpeechToText';
 import { useTallerOkAuth } from '@/hooks/useTallerOkAuth';
+import { appendTranscript } from '@/utils/speech/appendTranscript';
+import { previewText } from '@/utils/speech/previewText';
 import { TallerOkApiError } from '@/services/tallerok/tallerokClient';
 import { getCliente } from '@/services/tallerok/tallerokClientesApi';
 import { createTallerOkOrden } from '@/services/tallerok/tallerokOrdenesApi';
@@ -86,7 +90,6 @@ export default function NuevaOrdenScreen() {
 
   const router = useRouter();
   const { isAuthenticated: isTallerOkAuth } = useTallerOkAuth();
-  const diagnosticoInputRef = useRef<TextInput>(null);
 
   const [clienteId, setClienteId] = useState<string | undefined>(clienteIdParam);
   const [clienteLabel, setClienteLabel] = useState<string | null>(null);
@@ -103,7 +106,35 @@ export default function NuevaOrdenScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const speech = useSpeechToText({
+    enabled: !isSaving,
+    onFinalTranscript: (text) => {
+      console.log('[diagnosis] final-received', {
+        length: text.length,
+        preview: previewText(text),
+      }); // temporal
+      setDiagnosticoNotas((current) => {
+        const next = appendTranscript(current, text);
+        console.log('[diagnosis] form-state-updated', {
+          length: next.length,
+          preview: previewText(next),
+        }); // temporal
+        return next;
+      });
+    },
+  });
+
   const hasRequiredParams = Boolean(vehiculoId);
+
+  const { cancelListening, ...speechControlProps } = speech;
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        cancelListening();
+      };
+    }, [cancelListening]),
+  );
 
   useEffect(() => {
     if (!isTallerOkAuth || !vehiculoId) {
@@ -178,8 +209,13 @@ export default function NuevaOrdenScreen() {
     [contextError, isLoadingContext, isSaving, motivoIngreso, vehiculoId],
   );
 
-  const focusDiagnostico = () => {
-    diagnosticoInputRef.current?.focus();
+  const handleSpeechToggle = () => {
+    if (speech.isListening) {
+      speech.stopListening();
+      return;
+    }
+
+    void speech.startListening();
   };
 
   const addTarea = () => {
@@ -224,6 +260,12 @@ export default function NuevaOrdenScreen() {
     const diagnosticoTrim = diagnosticoNotas.trim();
     const observacionesTrim = observacionesInternas.trim();
 
+    console.log('[diagnosis] submit', {
+      diagnosisLength: diagnosticoTrim.length,
+      hasClientId: Boolean(clienteId),
+      hasVehicleId: Boolean(vehiculoId),
+    }); // temporal
+
     setIsSaving(true);
     try {
       const created = await createTallerOkOrden({
@@ -235,6 +277,8 @@ export default function NuevaOrdenScreen() {
         ...(payloadTareas.length > 0 ? { tareas: payloadTareas } : {}),
         ...(observacionesTrim ? { observacionesInternas: observacionesTrim } : {}),
       });
+
+      cancelListening();
 
       Alert.alert(
         'Diagnóstico guardado',
@@ -326,13 +370,10 @@ export default function NuevaOrdenScreen() {
           </Card>
         ) : null}
 
-        <ActionButton
-          emoji="🎤"
-          title="Dictar diagnóstico"
-          subtitle="Usá el dictado del teclado para cargar síntomas y observaciones"
-          accent
+        <SpeechDictationControl
+          {...speechControlProps}
           disabled={isSaving}
-          onPress={focusDiagnostico}
+          onToggle={handleSpeechToggle}
         />
 
         <View style={styles.actionRow}>
@@ -390,7 +431,6 @@ export default function NuevaOrdenScreen() {
           <View style={styles.diagnosticoGlow} />
           <Text style={styles.label}>Diagnóstico (editable)</Text>
           <TextInput
-            ref={diagnosticoInputRef}
             style={styles.diagnosticoInput}
             value={diagnosticoNotas}
             onChangeText={setDiagnosticoNotas}
@@ -405,7 +445,7 @@ export default function NuevaOrdenScreen() {
             editable={!isSaving}
           />
           <Text style={styles.helper}>
-            Podés dictar usando el micrófono del teclado del celular.
+            Podés editar manualmente el texto dictado o escrito.
           </Text>
         </View>
 
@@ -456,6 +496,7 @@ export default function NuevaOrdenScreen() {
           placeholder="Notas internas para el taller, repuestos a revisar, dudas para consultar al cliente..."
           numberOfLines={4}
           editable={!isSaving}
+          helperText=""
         />
 
         <Text style={styles.section}>Evidencias</Text>
