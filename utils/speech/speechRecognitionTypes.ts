@@ -21,6 +21,14 @@ export type SpeechRecognitionResultEvent = {
 export type SpeechRecognitionErrorEvent = {
   error: SpeechRecognitionErrorCode;
   message?: string;
+  /** Código nativo (Android SpeechRecognizer / iOS). Útil para diagnosticar no-speech. */
+  code?: number;
+};
+
+export type SpeechPermissionResult = {
+  status?: string;
+  granted: boolean;
+  canAskAgain?: boolean;
 };
 
 export type SpeechRecognitionNativeModule = {
@@ -31,10 +39,11 @@ export type SpeechRecognitionNativeModule = {
   }) => void;
   stop: () => void;
   abort: () => void;
-  requestPermissionsAsync: () => Promise<{
-    granted: boolean;
-    canAskAgain?: boolean;
-  }>;
+  requestPermissionsAsync: () => Promise<SpeechPermissionResult>;
+  /** [speech-audit] opcional — existe en expo-speech-recognition */
+  getMicrophonePermissionsAsync?: () => Promise<SpeechPermissionResult>;
+  requestMicrophonePermissionsAsync?: () => Promise<SpeechPermissionResult>;
+  getPermissionsAsync?: () => Promise<SpeechPermissionResult>;
   isRecognitionAvailable: () => boolean;
   getSupportedLocales: (options: {
     androidRecognitionServicePackage?: string;

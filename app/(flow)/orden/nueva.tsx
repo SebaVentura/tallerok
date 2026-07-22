@@ -128,9 +128,26 @@ export default function NuevaOrdenScreen() {
 
   const { cancelListening, ...speechControlProps } = speech;
 
+  // [speech-audit] montaje/desmontaje de pantalla — remover tras auditoría
+  useEffect(() => {
+    console.log('[speech-audit] component mounted', {
+      source: 'NuevaOrdenScreen',
+      timestamp: Date.now(),
+    });
+    return () => {
+      console.log('[speech-audit] component unmounted', {
+        source: 'NuevaOrdenScreen',
+        timestamp: Date.now(),
+      });
+    };
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
+      console.log('[speech-fix] screen focused'); // temporal
+
       return () => {
+        console.log('[speech-fix] focus cleanup'); // temporal
         cancelListening();
       };
     }, [cancelListening]),
@@ -210,7 +227,18 @@ export default function NuevaOrdenScreen() {
   );
 
   const handleSpeechToggle = () => {
+    // [speech-audit]
+    console.log('[speech-audit] 01 button pressed', {
+      source: 'NuevaOrdenScreen:handleSpeechToggle',
+      timestamp: Date.now(),
+      isListening: speech.isListening,
+      speechState: speech.state,
+    });
     if (speech.isListening) {
+      console.log('[speech-audit] toggle → stopListening', {
+        source: 'NuevaOrdenScreen:toggle-off',
+        timestamp: Date.now(),
+      });
       speech.stopListening();
       return;
     }
@@ -278,6 +306,11 @@ export default function NuevaOrdenScreen() {
         ...(observacionesTrim ? { observacionesInternas: observacionesTrim } : {}),
       });
 
+      // [speech-audit]
+      console.warn('[speech-audit] submit success → cancelListening', {
+        source: 'NuevaOrdenScreen:submit-success',
+        timestamp: Date.now(),
+      });
       cancelListening();
 
       Alert.alert(

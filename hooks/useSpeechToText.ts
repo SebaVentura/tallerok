@@ -57,6 +57,10 @@ export function useSpeechToText({
   enabled = true,
 }: UseSpeechToTextOptions): UseSpeechToTextResult {
   const [state, setState] = useState<SpeechToTextState>('idle');
+  // Espejo siempre-actual del estado. Permite que callbacks estables
+  // (cancelListening) lean el estado vigente sin depender de `state`, evitando
+  // que cambien de identidad en cada transición (causa del `aborted` inmediato).
+  const stateRef = useRef<SpeechToTextState>('idle');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSettingsAction, setShowSettingsAction] = useState(false);
@@ -71,15 +75,45 @@ export function useSpeechToText({
   const currentLangRef = useRef(PRIMARY_SPEECH_LANG);
   const fallbackAttemptedRef = useRef(false);
   const startInFlightRef = useRef(false);
+  // true solo mientras se espera la respuesta del diálogo de permiso (la
+  // Activity de Android manda AppState a background; no es una salida real).
+  const permissionRequestInFlightRef = useRef(false);
+  // Identifica cada intento de inicio. Una cancelación real lo incrementa,
+  // invalidando el `start()` pendiente que quedó atrás de un `await`.
+  const startAttemptRef = useRef(0);
   const moduleRef = useRef<SpeechRecognitionNativeModule | null>(null);
   const loadPromiseRef = useRef<Promise<LoadedSpeechRecognitionModule | null> | null>(null);
   const listenerSubscriptionsRef = useRef<ListenerSubscription[]>([]);
+  // [speech-audit] identificador por instancia — remover tras auditoría
+  const instanceIdRef = useRef(
+    `speech-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
 
   useEffect(() => {
     onFinalTranscriptRef.current = onFinalTranscript;
   }, [onFinalTranscript]);
 
+  // [speech-audit] montaje/desmontaje del hook — remover tras auditoría
+  useEffect(() => {
+    console.log('[speech-audit] hook mounted', {
+      instanceId: instanceIdRef.current,
+      timestamp: Date.now(),
+    });
+    console.log('[speech-audit] hook instance', instanceIdRef.current);
+
+    return () => {
+      console.log('[speech-audit] hook unmounted', {
+        instanceId: instanceIdRef.current,
+        timestamp: Date.now(),
+      });
+    };
+  }, []);
+
   const safeSetState = useCallback((next: SpeechToTextState) => {
+    // Único mecanismo de sincronización de la ref: se actualiza junto con el
+    // estado visible, de modo que `stateRef.current` refleje siempre el último
+    // estado solicitado antes de que cualquier callback estable lo consulte.
+    stateRef.current = next;
     if (isMountedRef.current) {
       setState(next);
     }
@@ -126,8 +160,18 @@ export function useSpeechToText({
     // tocar el micrófono para dictar otra frase y el texto se acumula.
     const continuous = Platform.OS === 'ios';
     const options = { lang, interimResults: true, continuous };
-    console.log('[speech] native start called', options); // temporal
+    // [speech-audit]
+    console.log('[speech-audit] 04 calling start', {
+      instanceId: instanceIdRef.current,
+      timestamp: Date.now(),
+      lang,
+      continuous,
+    });
     nativeModule.start(options);
+    console.log('[speech-audit] 05 start returned', {
+      instanceId: instanceIdRef.current,
+      timestamp: Date.now(),
+    });
     logSpeech('recognition started', { lang, continuous });
   }, []);
 
@@ -136,20 +180,40 @@ export function useSpeechToText({
       removeListeners();
 
       const subscriptions: ListenerSubscription[] = [
-        // [speech][TEMP-AUDIT] listener de diagnóstico — remover tras auditoría
         nativeModule.addListener('speechstart', () => {
-          console.log('[speech] native event: speechstart');
+          // [speech-audit]
+          console.log('[speech-audit] EVENT speechstart', {
+            instanceId: instanceIdRef.current,
+            timestamp: Date.now(),
+          });
         }),
-        // [speech][TEMP-AUDIT] listener de diagnóstico — remover tras auditoría
         nativeModule.addListener('audiostart', () => {
-          console.log('[speech] native event: audiostart');
+          // [speech-audit]
+          console.log('[speech-audit] EVENT audiostart', {
+            instanceId: instanceIdRef.current,
+            timestamp: Date.now(),
+          });
         }),
-        // [speech][TEMP-AUDIT] listener de diagnóstico — remover tras auditoría
+        nativeModule.addListener('audioend', () => {
+          // [speech-audit]
+          console.log('[speech-audit] EVENT audioend', {
+            instanceId: instanceIdRef.current,
+            timestamp: Date.now(),
+          });
+        }),
         nativeModule.addListener('nomatch', () => {
-          console.log('[speech] native event: nomatch (sin coincidencia reconocida)');
+          // [speech-audit]
+          console.log('[speech-audit] EVENT nomatch', {
+            instanceId: instanceIdRef.current,
+            timestamp: Date.now(),
+          });
         }),
         nativeModule.addListener('start', () => {
-          console.log('[speech] recognition started'); // [TEMP-AUDIT]
+          // [speech-audit]
+          console.log('[speech-audit] EVENT start', {
+            instanceId: instanceIdRef.current,
+            timestamp: Date.now(),
+          });
           sessionActiveRef.current = true;
           startInFlightRef.current = false;
           safeSetInterim('');
@@ -159,15 +223,12 @@ export function useSpeechToText({
           const resultEvent = event as SpeechRecognitionResultEvent;
           const results = resultEvent.results ?? [];
           const firstTranscript = results[0]?.transcript ?? '';
-          // [speech] result-shape — evidencia acotada de la forma real del evento nativo
-          console.log('[speech] result-shape', {
-            results: results.length,
-            alternatives: results.length,
-            first: previewText(firstTranscript),
+          // [speech-audit]
+          console.log('[speech-audit] EVENT result', {
+            instanceId: instanceIdRef.current,
+            timestamp: Date.now(),
             isFinal: resultEvent.isFinal ?? null,
-            keys: Object.keys(resultEvent).join(','),
-            lang: currentLangRef.current,
-            at: Date.now(),
+            transcript: firstTranscript ? previewText(firstTranscript) : null,
           });
 
           if (!isMountedRef.current) {
@@ -180,10 +241,6 @@ export function useSpeechToText({
           }
 
           if (resultEvent.isFinal) {
-            console.log('[speech] final-extracted', {
-              length: transcript.length,
-              preview: previewText(transcript),
-            });
             if (shouldAcceptFinalTranscript(lastFinalTranscriptRef.current, transcript)) {
               lastFinalTranscriptRef.current = transcript;
               onFinalTranscriptRef.current(transcript);
@@ -192,14 +249,14 @@ export function useSpeechToText({
             return;
           }
 
-          console.log('[speech] partial-extracted', {
-            length: transcript.length,
-            preview: previewText(transcript),
-          });
           safeSetInterim(transcript);
         }),
         nativeModule.addListener('end', () => {
-          console.log('[speech] recognition ended'); // [TEMP-AUDIT]
+          // [speech-audit]
+          console.log('[speech-audit] EVENT end', {
+            instanceId: instanceIdRef.current,
+            timestamp: Date.now(),
+          });
           sessionActiveRef.current = false;
           startInFlightRef.current = false;
           safeSetInterim('');
@@ -208,22 +265,26 @@ export function useSpeechToText({
         }),
         nativeModule.addListener('error', (event) => {
           const errorEvent = event as SpeechRecognitionErrorEvent;
-          // [TEMP-AUDIT] evidencia de errores nativos (no incluye datos sensibles)
-          console.error('[speech] recognition error', {
-            error: errorEvent.error,
-            message: errorEvent.message,
-          });
 
-          if (!isMountedRef.current) {
-            return;
-          }
-
+          // Cancelación voluntaria: no es un fallo, no debe salir como error rojo.
           if (errorEvent.error === 'aborted' && voluntaryCancelRef.current) {
+            console.log('[speech] recognition cancelled voluntarily');
             voluntaryCancelRef.current = false;
             sessionActiveRef.current = false;
             startInFlightRef.current = false;
             safeSetInterim('');
             safeSetState('idle');
+            return;
+          }
+
+          // Error real (incluye un aborted inesperado con voluntaryCancel=false): visible.
+          console.error('[speech] recognition error', {
+            error: errorEvent.error,
+            message: errorEvent.message,
+            code: errorEvent.code,
+          });
+
+          if (!isMountedRef.current) {
             return;
           }
 
@@ -307,6 +368,17 @@ export function useSpeechToText({
   );
 
   const startListening = useCallback(async () => {
+    // [speech-audit]
+    console.log('[speech-audit] 01 button pressed / startListening entered', {
+      instanceId: instanceIdRef.current,
+      timestamp: Date.now(),
+      enabled,
+      isAvailable,
+      state,
+      sessionActive: sessionActiveRef.current,
+      startInFlight: startInFlightRef.current,
+    });
+
     if (!enabled) {
       return;
     }
@@ -316,6 +388,10 @@ export function useSpeechToText({
     }
 
     if (sessionActiveRef.current || startInFlightRef.current) {
+      console.log('[speech-audit] startListening blocked (session/in-flight)', {
+        instanceId: instanceIdRef.current,
+        timestamp: Date.now(),
+      });
       return;
     }
 
@@ -324,16 +400,25 @@ export function useSpeechToText({
     }
 
     startInFlightRef.current = true;
+    const attemptId = ++startAttemptRef.current;
     setErrorMessage(null);
     setShowSettingsAction(false);
     setCanRetry(false);
     safeSetState('requesting-permission');
     logSpeech('permission requested');
 
+    const isStale = (label: string): boolean => {
+      if (attemptId !== startAttemptRef.current) {
+        console.log('[speech-fix] stale start attempt ignored', { attemptId, label });
+        return true;
+      }
+      return false;
+    };
+
     try {
       const nativeModule = await ensureModuleLoaded();
 
-      if (!isMountedRef.current) {
+      if (!isMountedRef.current || isStale('after-module-load')) {
         return;
       }
 
@@ -351,21 +436,59 @@ export function useSpeechToText({
         return;
       }
 
-      const permission = await nativeModule.requestPermissionsAsync();
-      // [TEMP-AUDIT] resultado de permiso (sin datos sensibles)
-      console.log('[speech] permission result', {
-        granted: permission.granted,
-        canAskAgain: permission.canAskAgain,
+      // Consultar el permiso actual y solo solicitarlo si aún no está concedido.
+      let permission: {
+        status?: string;
+        granted: boolean;
+        canAskAgain?: boolean;
+      } | null = null;
+      if (typeof nativeModule.getMicrophonePermissionsAsync === 'function') {
+        permission = await nativeModule.getMicrophonePermissionsAsync();
+      } else if (typeof nativeModule.getPermissionsAsync === 'function') {
+        permission = await nativeModule.getPermissionsAsync();
+      }
+
+      console.log('[speech-fix] permission before', {
+        status: permission?.status ?? 'api-unavailable',
+        granted: permission?.granted ?? null,
+        canAskAgain: permission?.canAskAgain ?? null,
       });
 
-      if (!isMountedRef.current) {
+      if (!isMountedRef.current || isStale('after-permission-check')) {
         return;
       }
 
-      if (!permission.granted) {
+      if (permission?.granted === true) {
+        console.log('[speech-fix] permission already granted — skipping request');
+      } else {
+        // Solicitar permiso: la Activity manda AppState a background; la ref
+        // evita que ese cambio dispare una cancelación.
+        permissionRequestInFlightRef.current = true;
+        try {
+          if (typeof nativeModule.requestMicrophonePermissionsAsync === 'function') {
+            permission = await nativeModule.requestMicrophonePermissionsAsync();
+          } else {
+            permission = await nativeModule.requestPermissionsAsync();
+          }
+        } finally {
+          permissionRequestInFlightRef.current = false;
+        }
+
+        console.log('[speech-fix] permission result', {
+          status: permission.status ?? (permission.granted ? 'granted' : 'denied'),
+          granted: permission.granted,
+          canAskAgain: permission.canAskAgain,
+        });
+      }
+
+      if (!isMountedRef.current || isStale('after-permission-request')) {
+        return;
+      }
+
+      if (!permission?.granted) {
         logSpeech('recognition error', { reason: 'permission-denied' });
         safeSetError(PERMISSION_DENIED_MESSAGE, {
-          showSettings: permission.canAskAgain === false,
+          showSettings: permission?.canAskAgain === false,
           canRetry: true,
         });
         return;
@@ -373,17 +496,33 @@ export function useSpeechToText({
 
       fallbackAttemptedRef.current = false;
       const lang = await resolveLanguage(nativeModule);
-      console.log('[speech] starting recognition', {
-        lang,
-        interimResults: true,
-        continuous: Platform.OS === 'ios',
-      }); // temporal
+
+      if (!isMountedRef.current || isStale('after-resolve-language')) {
+        return;
+      }
+
+      // No iniciar el micrófono si la app no está en primer plano (p. ej. la
+      // solicitud de permiso terminó pero AppState aún no volvió a 'active').
+      if (AppState.currentState !== 'active') {
+        console.log('[speech-fix] start skipped because app is not active', {
+          appState: AppState.currentState,
+        });
+        startInFlightRef.current = false;
+        safeSetState('idle');
+        return;
+      }
+
       beginRecognition(nativeModule, lang);
-    } catch {
+    } catch (err) {
       if (!isMountedRef.current) {
         return;
       }
 
+      console.error('[speech-audit] startListening catch', {
+        instanceId: instanceIdRef.current,
+        timestamp: Date.now(),
+        name: err instanceof Error ? err.name : 'unknown',
+      });
       logSpeech('recognition error', { reason: 'start-failed' });
       safeSetError(GENERIC_ERROR_MESSAGE, { canRetry: true });
     } finally {
@@ -406,25 +545,52 @@ export function useSpeechToText({
       return;
     }
 
+    // [speech-audit]
+    console.log('[speech-audit] STOP CALLED', {
+      source: 'useSpeechToText:stopListening',
+      instanceId: instanceIdRef.current,
+      timestamp: Date.now(),
+      state,
+    });
     safeSetState('processing');
     getNativeModule()?.stop();
-  }, [getNativeModule, safeSetState]);
+  }, [getNativeModule, safeSetState, state]);
 
   const cancelListening = useCallback(() => {
+    // Lee el estado vigente vía ref (no vía `state` cerrado), para que este
+    // callback mantenga identidad estable mientras cambia el reconocimiento.
+    const currentState = stateRef.current;
+
     if (
       !sessionActiveRef.current &&
-      state !== 'requesting-permission' &&
-      state !== 'processing'
+      currentState !== 'requesting-permission' &&
+      currentState !== 'processing'
     ) {
+      // [speech-fix] no-op: no hay sesión activa ni estado transitorio → no abortamos
+      console.log('[speech-fix] cancelListening no-op', {
+        source: 'useSpeechToText:cancelListening',
+        currentState,
+        sessionActive: sessionActiveRef.current,
+      });
       return;
     }
 
     voluntaryCancelRef.current = true;
     startInFlightRef.current = false;
+    // Invalida cualquier `startListening` que haya quedado esperando tras un
+    // await: al reanudar verá un attemptId obsoleto y no llamará a start().
+    startAttemptRef.current += 1;
     safeSetInterim('');
     safeSetState('idle');
+    // [speech-fix] abort called
+    console.warn('[speech-fix] abort called', {
+      source: 'useSpeechToText:cancelListening',
+      currentState,
+      sessionActive: sessionActiveRef.current,
+      voluntaryCancel: voluntaryCancelRef.current,
+    });
     getNativeModule()?.abort();
-  }, [getNativeModule, safeSetInterim, safeSetState, state]);
+  }, [getNativeModule, safeSetInterim, safeSetState]);
 
   const retry = useCallback(() => {
     setErrorMessage(null);
@@ -442,6 +608,13 @@ export function useSpeechToText({
       voluntaryCancelRef.current = true;
       sessionActiveRef.current = false;
       startInFlightRef.current = false;
+      // [speech-audit]
+      console.warn('[speech-audit] ABORT CALLED', {
+        source: 'useSpeechToText:unmount-cleanup',
+        instanceId: instanceIdRef.current,
+        timestamp: Date.now(),
+        isListening: false,
+      });
       getNativeModule()?.abort();
       removeListeners();
     };
@@ -449,19 +622,55 @@ export function useSpeechToText({
 
   useEffect(() => {
     if (!enabled) {
+      // [speech-audit]
+      console.log('[speech-audit] enabled=false → cancelListening', {
+        instanceId: instanceIdRef.current,
+        timestamp: Date.now(),
+      });
       cancelListening();
     }
   }, [cancelListening, enabled]);
 
   useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
-      if (nextState !== 'active') {
+      console.log('[speech-fix] AppState changed', {
+        nextState,
+        permissionRequestInFlight: permissionRequestInFlightRef.current,
+        state: stateRef.current,
+        sessionActive: sessionActiveRef.current,
+      });
+
+      if (nextState === 'active') {
+        return;
+      }
+
+      // La Activity del diálogo de permiso manda la app a background: no es una
+      // salida real, no cancelar.
+      if (permissionRequestInFlightRef.current) {
+        console.log('[speech-fix] AppState ignored during permission request', { nextState });
+        return;
+      }
+
+      // Cancelar solo si hay una sesión real (escuchando/procesando), no cuando
+      // apenas estamos en 'requesting-permission' sin sesión activa.
+      const hasRealSpeechSession =
+        sessionActiveRef.current ||
+        stateRef.current === 'listening' ||
+        stateRef.current === 'processing';
+
+      if (hasRealSpeechSession) {
         cancelListening();
       }
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
+  }, [cancelListening]);
+
+  // [speech-fix] verifica identidad estable de cancelListening. Con el fix, pasar
+  // de idle→listening NO debe volver a imprimir esto (solo al montar).
+  useEffect(() => {
+    console.log('[speech-fix] cancelListening identity changed');
   }, [cancelListening]);
 
   const isListening = state === 'listening';
